@@ -1,0 +1,13 @@
+{
+  "mongodb": {
+    "host": "localhost",
+    "port": 27017,
+    "database": "aizap"
+  },
+  "api": {
+    "port": 3001,
+    "cors": {
+      "origin": "http://localhost:3000"
+    }
+  }
+}
