@@ -122,7 +122,7 @@ export default {
       return titles[route.name] || 'AiZap'
     })
     
-    const menuItems = [
+    const allMenuItems = [
       {
         title: 'Dashboard',
         icon: 'mdi-view-dashboard',
@@ -166,6 +166,24 @@ export default {
         to: '/settings'
       }
     ]
+    
+    // Filter menu items based on user's menuAccess
+    const menuItems = computed(() => {
+      console.log('🔍 Usuário atual:', user.value)
+      console.log('🔍 MenuAccess:', user.value?.menuAccess)
+      console.log('🔍 Role:', user.value?.role)
+      
+      if (!user.value || !user.value.menuAccess || user.value.role === 'admin') {
+        console.log('🔍 Retornando todos os itens (admin ou sem menuAccess)')
+        return allMenuItems
+      }
+      
+      const filteredItems = allMenuItems.filter(item => 
+        user.value.menuAccess.includes(item.value)
+      )
+      console.log('🔍 Itens filtrados:', filteredItems)
+      return filteredItems
+    })
     
     const handleNavigation = (item) => {
       if (item.to) {

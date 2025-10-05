@@ -79,12 +79,44 @@
                   v-mask="'(##) #####-####'"
                 />
               </v-col>
-              <v-col cols="12">
-                <v-textarea
-                  v-model="generalSettings.address"
-                  label="Endereço"
+              <v-col cols="12" md="3">
+                <v-text-field
+                  v-model="generalSettings.cep"
+                  label="CEP"
                   variant="outlined"
-                  rows="2"
+                  v-mask="'#####-###'"
+                  @blur="searchCep"
+                  :loading="loadingCep"
+                  hint="Digite o CEP para preenchimento automático"
+                  persistent-hint
+                />
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="generalSettings.street"
+                  label="Rua"
+                  variant="outlined"
+                />
+              </v-col>
+              <v-col cols="12" md="3">
+                <v-text-field
+                  v-model="generalSettings.number"
+                  label="Número"
+                  variant="outlined"
+                />
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="generalSettings.neighborhood"
+                  label="Bairro"
+                  variant="outlined"
+                />
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="generalSettings.cityState"
+                  label="Cidade/Estado"
+                  variant="outlined"
                 />
               </v-col>
             </v-row>
@@ -98,7 +130,7 @@
               <v-select
                 v-model="generalSettings.workingDays"
                 :items="weekDays"
-                label="Dias de Funcionamento"
+                label="Dias de Funcionamento (Segunda a Sexta)"
                 variant="outlined"
                 multiple
                 chips
@@ -119,6 +151,84 @@
                 type="time"
                 variant="outlined"
               />
+            </v-col>
+          </v-row>
+
+          <v-divider class="my-4" />
+
+          <h4 class="subsection-title">Horários Especiais</h4>
+          <v-row>
+            <v-col cols="12" md="6">
+              <v-card class="special-hours-card">
+                <v-card-title class="text-subtitle-1">
+                  <v-icon class="mr-2">mdi-calendar-weekend</v-icon>
+                  Sábado
+                </v-card-title>
+                <v-card-text>
+                  <v-row>
+                    <v-col cols="6">
+                      <v-text-field
+                        v-model="generalSettings.saturdayStartTime"
+                        label="Início"
+                        type="time"
+                        variant="outlined"
+                        density="compact"
+                      />
+                    </v-col>
+                    <v-col cols="6">
+                      <v-text-field
+                        v-model="generalSettings.saturdayEndTime"
+                        label="Fim"
+                        type="time"
+                        variant="outlined"
+                        density="compact"
+                      />
+                    </v-col>
+                  </v-row>
+                  <v-switch
+                    v-model="generalSettings.saturdayOpen"
+                    label="Aberto aos sábados"
+                    color="primary"
+                    density="compact"
+                  />
+                </v-card-text>
+              </v-card>
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-card class="special-hours-card">
+                <v-card-title class="text-subtitle-1">
+                  <v-icon class="mr-2">mdi-calendar-weekend</v-icon>
+                  Domingo
+                </v-card-title>
+                <v-card-text>
+                  <v-row>
+                    <v-col cols="6">
+                      <v-text-field
+                        v-model="generalSettings.sundayStartTime"
+                        label="Início"
+                        type="time"
+                        variant="outlined"
+                        density="compact"
+                      />
+                    </v-col>
+                    <v-col cols="6">
+                      <v-text-field
+                        v-model="generalSettings.sundayEndTime"
+                        label="Fim"
+                        type="time"
+                        variant="outlined"
+                        density="compact"
+                      />
+                    </v-col>
+                  </v-row>
+                  <v-switch
+                    v-model="generalSettings.sundayOpen"
+                    label="Aberto aos domingos"
+                    color="primary"
+                    density="compact"
+                  />
+                </v-card-text>
+              </v-card>
             </v-col>
           </v-row>
 
@@ -481,72 +591,208 @@
     </v-card>
 
     <!-- User Dialog -->
-    <v-dialog v-model="userDialog" max-width="600px">
+    <v-dialog v-model="userDialog" max-width="800px" scrollable>
       <v-card>
-        <v-card-title>
+        <v-card-title class="d-flex align-center">
+          <v-icon class="mr-2">{{ editingUser ? 'mdi-account-edit' : 'mdi-account-plus' }}</v-icon>
           {{ editingUser ? 'Editar Usuário' : 'Novo Usuário' }}
         </v-card-title>
+        
         <v-card-text>
-          <v-form ref="userForm" v-model="userFormValid">
-            <v-row>
-              <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="userForm.name"
-                  label="Nome"
-                  variant="outlined"
-                  :rules="[v => !!v || 'Nome é obrigatório']"
-                  required
-                />
-              </v-col>
-              <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="userForm.email"
-                  label="Email"
-                  type="email"
-                  variant="outlined"
-                  :rules="emailRules"
-                  required
-                />
-              </v-col>
-              <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="userForm.password"
-                  label="Senha"
-                  type="password"
-                  variant="outlined"
-                  :rules="passwordRules"
-                  :required="!editingUser"
-                />
-              </v-col>
-              <v-col cols="12" md="6">
-                <v-select
-                  v-model="userForm.role"
-                  :items="roleOptions"
-                  label="Função"
-                  variant="outlined"
-                  required
-                />
-              </v-col>
-              <v-col cols="12">
-                <v-switch
-                  v-model="userForm.isActive"
-                  label="Usuário Ativo"
-                  color="primary"
-                />
-              </v-col>
-            </v-row>
-          </v-form>
+          <v-tabs v-model="userTab" color="primary">
+            <v-tab value="basic">
+              <v-icon start>mdi-account</v-icon>
+              Dados Básicos
+            </v-tab>
+            <v-tab value="access">
+              <v-icon start>mdi-shield-account</v-icon>
+              Acesso
+            </v-tab>
+            <v-tab value="messages">
+              <v-icon start>mdi-message-text</v-icon>
+              Mensagens Rápidas
+            </v-tab>
+          </v-tabs>
+
+          <v-window v-model="userTab">
+            <v-window-item value="basic">
+              <v-form ref="userFormRef" v-model="userFormValid">
+              <v-row class="mt-4">
+                <!-- Upload de Foto -->
+                <v-col cols="12" class="text-center">
+                  <v-avatar size="120" class="mb-4">
+                    <v-img v-if="userForm.photo" :src="userForm.photo" />
+                    <v-icon v-else size="60">mdi-account</v-icon>
+                  </v-avatar>
+                  <v-file-input
+                    v-model="photoFile"
+                    label="Selecionar Foto"
+                    accept="image/*"
+                    variant="outlined"
+                    prepend-icon="mdi-camera"
+                    @change="handlePhotoUpload"
+                    class="mt-2"
+                  />
+                </v-col>
+                
+                <v-col cols="12" md="6">
+                  <v-text-field
+                    v-model="userForm.firstName"
+                    label="Nome"
+                    variant="outlined"
+                    :rules="[v => !!v || 'Nome é obrigatório']"
+                    required
+                  />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field
+                    v-model="userForm.lastName"
+                    label="Sobrenome"
+                    variant="outlined"
+                    :rules="[v => !!v || 'Sobrenome é obrigatório']"
+                    required
+                  />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field
+                    v-model="userForm.email"
+                    label="Email"
+                    type="email"
+                    variant="outlined"
+                    :rules="emailRules"
+                    required
+                  />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field
+                    v-model="userForm.password"
+                    label="Senha"
+                    type="password"
+                    variant="outlined"
+                    :rules="passwordRules"
+                    :required="!editingUser"
+                  />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-select
+                    v-model="userForm.sector"
+                    :items="sectorOptions"
+                    label="Setor"
+                    variant="outlined"
+                    required
+                  />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-select
+                    v-model="userForm.role"
+                    :items="roleOptions"
+                    label="Função"
+                    variant="outlined"
+                    required
+                  />
+                </v-col>
+                <v-col cols="12">
+                  <v-switch
+                    v-model="userForm.isActive"
+                    label="Usuário Ativo"
+                    color="primary"
+                  />
+                </v-col>
+              </v-row>
+              </v-form>
+            </v-window-item>
+
+            <!-- Aba Acesso -->
+            <v-window-item value="access">
+              <v-row class="mt-4">
+                <v-col cols="12">
+                  <h4 class="mb-3">Acesso ao Menu Lateral</h4>
+                  <v-select
+                    v-model="userForm.menuAccess"
+                    :items="menuOptions"
+                    label="Selecione as opções de menu"
+                    variant="outlined"
+                    multiple
+                    chips
+                    hint="Selecione quais seções o usuário terá acesso"
+                    persistent-hint
+                  />
+                </v-col>
+                <v-col cols="12">
+                  <v-switch
+                    v-model="userForm.autoCapitalization"
+                    label="Capitalização Automática"
+                    color="primary"
+                    hint="Ativa capitalização automática da primeira letra em mensagens"
+                    persistent-hint
+                  />
+                </v-col>
+              </v-row>
+            </v-window-item>
+
+            <!-- Aba Mensagens Rápidas -->
+            <v-window-item value="messages">
+              <v-row class="mt-4">
+                <v-col cols="12">
+                  <h4 class="mb-3">Configuração de Mensagens Rápidas</h4>
+                  <div v-for="(message, index) in userForm.quickMessages" :key="index" class="mb-4">
+                    <v-card variant="outlined">
+                      <v-card-text>
+                        <v-row>
+                          <v-col cols="12" md="4">
+                            <v-text-field
+                              v-model="message.shortcut"
+                              label="Atalho"
+                              variant="outlined"
+                              hint="Ex: /saudacao"
+                              persistent-hint
+                            />
+                          </v-col>
+                          <v-col cols="12" md="8">
+                            <v-textarea
+                              v-model="message.text"
+                              label="Mensagem"
+                              variant="outlined"
+                              rows="2"
+                            />
+                          </v-col>
+                        </v-row>
+                        <v-btn
+                          color="error"
+                          variant="text"
+                          size="small"
+                          @click="removeQuickMessage(index)"
+                        >
+                          <v-icon>mdi-delete</v-icon>
+                          Remover
+                        </v-btn>
+                      </v-card-text>
+                    </v-card>
+                  </div>
+                  <v-btn
+                    color="primary"
+                    variant="outlined"
+                    @click="addQuickMessage"
+                    prepend-icon="mdi-plus"
+                  >
+                    Adicionar Mensagem Rápida
+                  </v-btn>
+                </v-col>
+              </v-row>
+            </v-window-item>
+          </v-window>
         </v-card-text>
+        
         <v-card-actions>
           <v-spacer />
-          <v-btn @click="userDialog = false">Cancelar</v-btn>
+          <v-btn @click="closeUserDialog">Cancelar</v-btn>
           <v-btn
             color="primary"
             @click="saveUser"
             :loading="savingUser"
             :disabled="!userFormValid"
           >
-            Salvar
+            {{ editingUser ? 'Atualizar' : 'Criar' }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -580,6 +826,9 @@ export default {
     const userDialog = ref(false)
     const editingUser = ref(false)
     const importFile = ref(null)
+    const loadingCep = ref(false)
+    const userTab = ref('basic')
+    const photoFile = ref(null)
     
     // General Settings
     const generalSettings = reactive({
@@ -587,10 +836,20 @@ export default {
       cnpj: '',
       email: '',
       phone: '',
-      address: '',
+      cep: '',
+      street: '',
+      number: '',
+      neighborhood: '',
+      cityState: '',
       workingDays: [],
       startTime: '08:00',
-      endTime: '18:00'
+      endTime: '18:00',
+      saturdayStartTime: '09:00',
+      saturdayEndTime: '13:00',
+      saturdayOpen: false,
+      sundayStartTime: '09:00',
+      sundayEndTime: '13:00',
+      sundayOpen: false
     })
     
     // WhatsApp Settings
@@ -615,11 +874,17 @@ export default {
     
     // User Form
     const userForm = reactive({
-      name: '',
+      firstName: '',
+      lastName: '',
       email: '',
       password: '',
       role: 'user',
-      isActive: true
+      sector: '',
+      photo: '',
+      isActive: true,
+      menuAccess: [],
+      autoCapitalization: false,
+      quickMessages: []
     })
     
     // Data
@@ -656,6 +921,29 @@ export default {
       { title: 'Usuário', value: 'user' }
     ]
     
+    const sectorOptions = [
+      'Comercial',
+      'Suporte Técnico',
+      'Montagem',
+      'Financeiro',
+      'RH',
+      'Logística',
+      'TI',
+      'Desenvolvimento',
+      'Gerência',
+      'Diretoria'
+    ]
+    
+    const menuOptions = [
+      { title: 'Dashboard', value: 'dashboard' },
+      { title: 'Chat', value: 'chat' },
+      { title: 'Contatos', value: 'contacts' },
+      { title: 'Relatórios', value: 'reports' },
+      { title: 'Configurações', value: 'settings' },
+      { title: 'Bot', value: 'bot' },
+      { title: 'Conectar', value: 'connect' }
+    ]
+    
     const userHeaders = [
       { title: 'Nome', key: 'name' },
       { title: 'Email', key: 'email' },
@@ -676,16 +964,80 @@ export default {
     ]
     
     // Methods
+    const searchCep = async () => {
+      const cep = generalSettings.cep.replace(/\D/g, '') // Remove caracteres não numéricos
+      
+      if (cep.length !== 8) {
+        return // CEP deve ter 8 dígitos
+      }
+      
+      loadingCep.value = true
+      try {
+        const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
+        const data = await response.json()
+        
+        if (data.erro) {
+          console.warn('CEP não encontrado')
+          return
+        }
+        
+        // Preenche os campos automaticamente
+        generalSettings.street = data.logradouro || ''
+        generalSettings.neighborhood = data.bairro || ''
+        generalSettings.cityState = `${data.localidade || ''}/${data.uf || ''}`
+        
+        console.log('Endereço preenchido automaticamente:', data)
+      } catch (error) {
+        console.error('Erro ao buscar CEP:', error)
+      } finally {
+        loadingCep.value = false
+      }
+    }
+    
     const saveGeneralSettings = async () => {
       saving.value = true
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        console.log('Configurações gerais salvas:', generalSettings)
+        const response = await fetch('http://localhost:3001/settings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(generalSettings)
+        })
+        
+        if (!response.ok) {
+          throw new Error('Erro ao salvar configurações')
+        }
+        
+        const result = await response.json()
+        console.log('Configurações salvas:', result)
+        
+        // Mostrar notificação de sucesso
+        alert('Configurações salvas com sucesso!')
       } catch (error) {
         console.error('Erro ao salvar configurações gerais:', error)
+        alert('Erro ao salvar configurações. Tente novamente.')
       } finally {
         saving.value = false
+      }
+    }
+    
+    const loadGeneralSettings = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/settings')
+        
+        if (!response.ok) {
+          throw new Error('Erro ao carregar configurações')
+        }
+        
+        const settings = await response.json()
+        
+        // Atualizar os dados reativos
+        Object.assign(generalSettings, settings)
+        
+        console.log('Configurações carregadas:', settings)
+      } catch (error) {
+        console.error('Erro ao carregar configurações:', error)
       }
     }
     
@@ -809,64 +1161,148 @@ export default {
     
     const openUserDialog = () => {
       editingUser.value = false
-      userForm.name = ''
+      userForm.firstName = ''
+      userForm.lastName = ''
       userForm.email = ''
       userForm.password = ''
       userForm.role = 'user'
+      userForm.sector = ''
+      userForm.photo = ''
       userForm.isActive = true
+      userForm.menuAccess = []
+      userForm.autoCapitalization = false
+      userForm.quickMessages = []
       userDialog.value = true
     }
     
     const editUser = (user) => {
-      editingUser.value = true
-      userForm.name = user.name
+      editingUser.value = user
+      userForm.firstName = user.firstName || ''
+      userForm.lastName = user.lastName || ''
       userForm.email = user.email
       userForm.password = ''
       userForm.role = user.role
+      userForm.sector = user.sector || ''
+      userForm.photo = user.photo || ''
       userForm.isActive = user.isActive
+      userForm.menuAccess = user.menuAccess || []
+      userForm.autoCapitalization = user.autoCapitalization || false
+      userForm.quickMessages = user.quickMessages || []
       userDialog.value = true
     }
     
     const saveUser = async () => {
       savingUser.value = true
       try {
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        console.log('Usuário salvo:', userForm)
-        userDialog.value = false
+        const url = editingUser.value 
+          ? `http://localhost:3001/users/${editingUser.value.id}`
+          : 'http://localhost:3001/users'
+        
+        const method = editingUser.value ? 'PUT' : 'POST'
+        
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(userForm)
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Erro ao salvar usuário')
+        }
+        
+        const result = await response.json()
+        console.log('Usuário salvo:', result)
+        
+        await loadUsers()
+        closeUserDialog()
+        alert(editingUser.value ? 'Usuário atualizado com sucesso!' : 'Usuário criado com sucesso!')
       } catch (error) {
         console.error('Erro ao salvar usuário:', error)
+        alert(`Erro ao salvar usuário: ${error.message}`)
       } finally {
         savingUser.value = false
       }
     }
     
-    const deleteUser = (user) => {
-      console.log('Deletar usuário:', user)
+    const deleteUser = async (user) => {
+      if (confirm(`Tem certeza que deseja excluir o usuário ${user.firstName}?`)) {
+        try {
+          const response = await fetch(`http://localhost:3001/users/${user.id}`, {
+            method: 'DELETE'
+          })
+          
+          if (!response.ok) {
+            throw new Error('Erro ao excluir usuário')
+          }
+          
+          await loadUsers()
+          alert('Usuário excluído com sucesso!')
+        } catch (error) {
+          console.error('Erro ao excluir usuário:', error)
+          alert('Erro ao excluir usuário. Tente novamente.')
+        }
+      }
+    }
+    
+    const handlePhotoUpload = (event) => {
+      const file = event.target.files[0]
+      if (file) {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          userForm.photo = e.target.result
+        }
+        reader.readAsDataURL(file)
+      }
+    }
+    
+    const addQuickMessage = () => {
+      userForm.quickMessages.push({
+        shortcut: '',
+        text: ''
+      })
+    }
+    
+    const removeQuickMessage = (index) => {
+      userForm.quickMessages.splice(index, 1)
+    }
+    
+    const closeUserDialog = () => {
+      userDialog.value = false
+      editingUser.value = false
+      userTab.value = 'basic'
+      photoFile.value = null
+      // Reset form
+      Object.assign(userForm, {
+        firstName: '',
+        lastName: '',
+        email: '',
+        password: '',
+        role: 'user',
+        sector: '',
+        photo: '',
+        isActive: true,
+        menuAccess: [],
+        autoCapitalization: false,
+        quickMessages: []
+      })
     }
     
     const loadUsers = async () => {
       loadingUsers.value = true
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        users.value = [
-          {
-            id: 1,
-            name: 'Administrador',
-            email: 'admin@aizap.com.br',
-            role: 'admin',
-            isActive: true
-          },
-          {
-            id: 2,
-            name: 'João Silva',
-            email: 'joao@empresa.com',
-            role: 'user',
-            isActive: true
-          }
-        ]
+        const response = await fetch('http://localhost:3001/users')
+        
+        if (!response.ok) {
+          throw new Error('Erro ao carregar usuários')
+        }
+        
+        users.value = await response.json()
       } catch (error) {
         console.error('Erro ao carregar usuários:', error)
+        alert('Erro ao carregar usuários. Tente novamente.')
       } finally {
         loadingUsers.value = false
       }
@@ -874,6 +1310,7 @@ export default {
     
     onMounted(() => {
       loadUsers()
+      loadGeneralSettings()
     })
     
     return {
@@ -895,6 +1332,9 @@ export default {
       userDialog,
       editingUser,
       importFile,
+      loadingCep,
+      userTab,
+      photoFile,
       generalSettings,
       whatsappSettings,
       backupSettings,
@@ -904,9 +1344,13 @@ export default {
       whatsappProviders,
       retentionOptions,
       roleOptions,
+      sectorOptions,
+      menuOptions,
       userHeaders,
       emailRules,
       passwordRules,
+      searchCep,
+      loadGeneralSettings,
       saveGeneralSettings,
       saveWhatsAppSettings,
       testConnection,
@@ -921,7 +1365,11 @@ export default {
       openUserDialog,
       editUser,
       saveUser,
-      deleteUser
+      deleteUser,
+      handlePhotoUpload,
+      addQuickMessage,
+      removeQuickMessage,
+      closeUserDialog
     }
   }
 }
@@ -1012,5 +1460,15 @@ export default {
 
 .backup-action-card .v-card-text {
   padding-bottom: 16px;
+}
+
+.special-hours-card {
+  border: 1px solid #e0e0e0;
+  transition: all 0.2s;
+}
+
+.special-hours-card:hover {
+  border-color: #1976d2;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
 }
 </style>
