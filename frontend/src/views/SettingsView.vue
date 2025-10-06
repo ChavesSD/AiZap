@@ -2,7 +2,7 @@
   <div class="settings-page">
     <v-container fluid>
       <v-row justify="center">
-        <v-col cols="12" md="10" lg="8">
+        <v-col cols="12" md="11" lg="10">
           <!-- Settings Header -->
           <div class="settings-header">
             <h2 class="settings-title">

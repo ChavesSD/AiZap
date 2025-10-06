@@ -176,7 +176,7 @@ export default {
 
 .login-card {
   width: 100%;
-  max-width: 400px;
+  max-width: 500px;
   border-radius: 16px;
   backdrop-filter: blur(10px);
   background: rgba(255, 255, 255, 0.95) !important;

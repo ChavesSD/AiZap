@@ -2,12 +2,15 @@
   <div class="connect-page">
     <v-container fluid>
       <v-row justify="center">
-        <v-col cols="12" md="8" lg="6">
+        <v-col cols="12" md="11" lg="10">
           <!-- WhatsApp Connection Card -->
           <v-card class="connection-card" elevation="4">
             <v-card-title class="text-center pa-6">
               <v-icon size="48" color="success" class="mb-4">mdi-whatsapp</v-icon>
-              <h2 class="connection-title">Conectar WhatsApp</h2>
+              <h2 class="connection-title">
+                <v-icon class="mr-3">mdi-whatsapp</v-icon>
+                Conectar WhatsApp
+              </h2>
               <p class="connection-subtitle">Escaneie o QR Code para conectar seu WhatsApp</p>
             </v-card-title>
             

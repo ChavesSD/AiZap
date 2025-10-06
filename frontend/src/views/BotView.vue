@@ -2,7 +2,7 @@
   <div class="bot-page">
     <v-container fluid>
       <v-row justify="center">
-        <v-col cols="12" md="10" lg="8">
+        <v-col cols="12" md="11" lg="10">
           <!-- Bot Header -->
           <div class="bot-header">
             <h2 class="bot-title">
@@ -357,12 +357,12 @@ export default {
 
     // Headers da tabela de leads
     const leadsHeaders = ref([
-      { title: 'Nome', key: 'name', sortable: true },
-      { title: 'Telefone', key: 'phone', sortable: true },
-      { title: 'Status', key: 'status', sortable: true },
-      { title: 'Última Mensagem', key: 'lastMessage', sortable: false },
-      { title: 'Etapa do Fluxo', key: 'flowStep', sortable: true },
-      { title: 'Ações', key: 'actions', sortable: false, align: 'center' }
+      { title: 'Nome', key: 'name', sortable: true, width: '15%' },
+      { title: 'Telefone', key: 'phone', sortable: true, width: '15%' },
+      { title: 'Status', key: 'status', sortable: true, width: '12%' },
+      { title: 'Última Mensagem', key: 'lastMessage', sortable: false, width: '35%' },
+      { title: 'Etapa do Fluxo', key: 'flowStep', sortable: true, width: '15%' },
+      { title: 'Ações', key: 'actions', sortable: false, align: 'center', width: '8%' }
     ])
 
     // Configurações do bot
@@ -663,15 +663,16 @@ export default {
 }
 
 .last-message-cell {
-  max-width: 200px;
+  max-width: none;
+  min-width: 250px;
 }
 
 .message-text {
   font-size: 14px;
   color: #333;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-wrap: break-word;
+  line-height: 1.4;
 }
 
 .message-time {

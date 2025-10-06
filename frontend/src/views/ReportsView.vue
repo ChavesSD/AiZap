@@ -2,7 +2,7 @@
   <div class="reports-page">
     <v-container fluid>
       <v-row justify="center">
-        <v-col cols="12" md="8" lg="6">
+        <v-col cols="12" md="11" lg="10">
           <v-card class="reports-card" elevation="4">
             <v-card-text class="text-center pa-8">
               <v-icon size="64" color="info" class="mb-4">mdi-chart-line</v-icon>

@@ -729,7 +729,7 @@ export default {
 
 .chat-input {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 12px;
   padding: 12px 24px;
   background: rgba(255, 255, 255, 0.95);
@@ -744,35 +744,50 @@ export default {
 .input-actions {
   display: flex;
   gap: 4px;
-  margin-right: 8px;
+  align-items: center;
 }
 
 .action-btn {
   min-width: 40px !important;
   height: 40px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .message-input-container {
   flex: 1;
+  display: flex;
+  align-items: center;
 }
 
 .message-input {
   flex: 1;
+  align-self: center;
 }
 
 .send-actions {
   display: flex;
   gap: 8px;
-  margin-left: 8px;
+  align-items: center;
 }
 
 .record-btn {
   min-width: 40px !important;
   height: 40px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .send-btn {
-  margin-bottom: 4px;
+  min-width: 40px !important;
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 /* Conversations Sidebar - Always Visible */

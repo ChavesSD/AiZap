@@ -1,10 +1,12 @@
 <template>
   <div class="contacts-page">
     <v-container fluid>
-      <h2 class="section-title mb-4">Contatos</h2>
+      <v-row justify="center">
+        <v-col cols="12" md="11" lg="10">
+          <h2 class="section-title mb-4">Contatos</h2>
 
-      <!-- Toolbar -->
-      <v-card class="mb-4" variant="outlined">
+          <!-- Toolbar -->
+          <v-card class="mb-4" variant="outlined">
         <v-card-text>
           <v-row class="align-center" no-gutters>
             <v-col cols="12" md="4" class="pr-md-4 mb-3 mb-md-0">
@@ -97,9 +99,9 @@
       </v-card>
 
       <!-- Dialog: Create/Edit Contact -->
-      <v-dialog v-model="contactDialog" max-width="520">
-        <v-card>
-          <v-card-title>
+      <v-dialog v-model="contactDialog" max-width="600px" scrollable>
+        <v-card class="dialog-card">
+          <v-card-title class="dialog-title">
             <v-icon class="mr-2">{{ editing ? 'mdi-account-edit' : 'mdi-account-plus' }}</v-icon>
             {{ editing ? 'Editar Contato' : 'Novo Contato' }}
           </v-card-title>
@@ -137,9 +139,9 @@
       </v-dialog>
 
       <!-- Dialog: Delete Confirmation -->
-      <v-dialog v-model="deleteDialog" max-width="440">
-        <v-card>
-          <v-card-title class="d-flex align-center">
+      <v-dialog v-model="deleteDialog" max-width="500px">
+        <v-card class="dialog-card">
+          <v-card-title class="dialog-title">
             <v-icon class="mr-2" color="error">mdi-delete</v-icon>
             Excluir Contato
           </v-card-title>
@@ -153,6 +155,8 @@
           </v-card-actions>
         </v-card>
       </v-dialog>
+        </v-col>
+      </v-row>
     </v-container>
   </div>
 </template>
@@ -345,11 +349,38 @@ export default {
 }
 
 .section-title {
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 700;
+  color: #0c1b23;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
 }
 
 .contacts-table {
   min-height: 360px;
+}
+
+/* Dialog Styles */
+.dialog-card {
+  border-radius: 16px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
+}
+
+.dialog-title {
+  padding: 24px 24px 16px 24px !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  color: #0c1b23 !important;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.dialog-card .v-card-text {
+  padding: 24px !important;
+}
+
+.dialog-card .v-card-actions {
+  padding: 16px 24px 24px 24px !important;
+  border-top: 1px solid #e0e0e0;
 }
 </style>
