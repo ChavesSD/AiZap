@@ -63,12 +63,24 @@
       <v-menu>
         <template v-slot:activator="{ props }">
           <v-btn
-            icon="mdi-account-circle"
             v-bind="props"
             class="user-menu-btn"
-          />
+            variant="text"
+          >
+            <v-avatar size="32">
+              <v-img v-if="userAvatar" :src="userAvatar" />
+              <v-icon v-else>mdi-account-circle</v-icon>
+            </v-avatar>
+          </v-btn>
         </template>
         <v-list>
+          <v-list-item
+            prepend-avatar="userAvatar"
+            :title="user?.firstName || user?.name || 'Usuário'"
+            :subtitle="user?.email || ''"
+            disabled
+          />
+          <v-divider />
           <v-list-item
             prepend-icon="mdi-account"
             title="Perfil"
@@ -87,6 +99,117 @@
     <v-main class="main-content">
       <router-view />
     </v-main>
+
+    <!-- Profile Modal -->
+    <v-dialog v-model="profileDialog" max-width="600px" scrollable>
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon class="mr-2">mdi-account-edit</v-icon>
+          Meu Perfil
+        </v-card-title>
+        
+        <v-card-text>
+          <v-form ref="profileFormRef" v-model="profileFormValid">
+            <v-row class="mt-4">
+              <!-- Upload de Foto -->
+              <v-col cols="12" class="text-center">
+                <v-avatar size="120" class="mb-4">
+                  <v-img v-if="profileForm.photo" :src="profileForm.photo" />
+                  <v-icon v-else size="60">mdi-account</v-icon>
+                </v-avatar>
+                <v-file-input
+                  v-model="photoFile"
+                  label="Selecionar Foto"
+                  accept="image/*"
+                  variant="outlined"
+                  prepend-icon="mdi-camera"
+                  @change="handlePhotoUpload"
+                  class="mt-2"
+                />
+                <v-alert
+                  type="info"
+                  variant="tonal"
+                  density="compact"
+                  class="mt-2"
+                >
+                  <template v-slot:prepend>
+                    <v-icon>mdi-information</v-icon>
+                  </template>
+                  <div class="text-caption">
+                    <strong>Dimensões recomendadas:</strong> 400x400 pixels<br>
+                    <strong>Formatos aceitos:</strong> JPG, PNG, WebP<br>
+                    <strong>Tamanho máximo:</strong> 2MB
+                  </div>
+                </v-alert>
+              </v-col>
+              
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="profileForm.firstName"
+                  label="Nome"
+                  variant="outlined"
+                  :rules="[v => !!v || 'Nome é obrigatório']"
+                  required
+                />
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="profileForm.lastName"
+                  label="Sobrenome"
+                  variant="outlined"
+                  :rules="[v => !!v || 'Sobrenome é obrigatório']"
+                  required
+                />
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="profileForm.email"
+                  label="Email"
+                  variant="outlined"
+                  type="email"
+                  :rules="[v => !!v || 'Email é obrigatório', v => /.+@.+\..+/.test(v) || 'Email deve ser válido']"
+                  required
+                />
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="profileForm.sector"
+                  label="Setor"
+                  variant="outlined"
+                />
+              </v-col>
+              <v-col cols="12">
+                <v-text-field
+                  v-model="profileForm.password"
+                  label="Nova Senha (deixe em branco para manter a atual)"
+                  variant="outlined"
+                  type="password"
+                  :rules="[v => !v || v.length >= 6 || 'Senha deve ter pelo menos 6 caracteres']"
+                />
+              </v-col>
+            </v-row>
+          </v-form>
+        </v-card-text>
+        
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            color="grey"
+            variant="text"
+            @click="closeProfileDialog"
+          >
+            Cancelar
+          </v-btn>
+          <v-btn
+            color="primary"
+            @click="saveProfile"
+            :loading="savingProfile"
+          >
+            Salvar
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-app>
 </template>
 
@@ -104,8 +227,30 @@ export default {
     
     const drawer = ref(true)
     
+    // Profile modal state
+    const profileDialog = ref(false)
+    const profileFormValid = ref(false)
+    const savingProfile = ref(false)
+    const photoFile = ref(null)
+    
     const user = computed(() => authStore.user || {})
-    const userAvatar = computed(() => `https://ui-avatars.com/api/?name=${encodeURIComponent(user.value.name || 'U')}&background=0c1b23&color=fff`)
+    const userAvatar = computed(() => {
+      if (user.value?.photo) {
+        return user.value.photo
+      }
+      const name = user.value?.firstName || user.value?.name || 'U'
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0c1b23&color=fff`
+    })
+    
+    // Profile form
+    const profileForm = ref({
+      firstName: '',
+      lastName: '',
+      email: '',
+      sector: '',
+      photo: '',
+      password: ''
+    })
     
     const currentRoute = computed(() => route.name)
     
@@ -197,7 +342,74 @@ export default {
     }
     
     const goToProfile = () => {
-      router.push('/profile')
+      // Carregar dados do usuário atual no formulário
+      profileForm.value = {
+        firstName: user.value?.firstName || '',
+        lastName: user.value?.lastName || '',
+        email: user.value?.email || '',
+        sector: user.value?.sector || '',
+        photo: user.value?.photo || '',
+        password: ''
+      }
+      profileDialog.value = true
+    }
+    
+    const closeProfileDialog = () => {
+      profileDialog.value = false
+      photoFile.value = null
+    }
+    
+    const handlePhotoUpload = (event) => {
+      const file = event.target.files[0]
+      if (file) {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          profileForm.value.photo = e.target.result
+        }
+        reader.readAsDataURL(file)
+      }
+    }
+    
+    const saveProfile = async () => {
+      savingProfile.value = true
+      try {
+        const updateData = {
+          firstName: profileForm.value.firstName,
+          lastName: profileForm.value.lastName,
+          email: profileForm.value.email,
+          sector: profileForm.value.sector,
+          photo: profileForm.value.photo
+        }
+        
+        // Incluir senha apenas se fornecida
+        if (profileForm.value.password) {
+          updateData.password = profileForm.value.password
+        }
+        
+        const response = await fetch(`http://localhost:3001/users/${user.value.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(updateData)
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Erro ao atualizar perfil')
+        }
+        
+        // Atualizar dados do usuário no store
+        authStore.updateUser(updateData)
+        
+        closeProfileDialog()
+        alert('Perfil atualizado com sucesso!')
+      } catch (error) {
+        console.error('Erro ao salvar perfil:', error)
+        alert(`Erro ao salvar perfil: ${error.message}`)
+      } finally {
+        savingProfile.value = false
+      }
     }
     
     onMounted(() => {
@@ -214,7 +426,16 @@ export default {
       menuItems,
       handleNavigation,
       handleLogout,
-      goToProfile
+      goToProfile,
+      // Profile modal
+      profileDialog,
+      profileForm,
+      profileFormValid,
+      savingProfile,
+      photoFile,
+      closeProfileDialog,
+      handlePhotoUpload,
+      saveProfile
     }
   }
 }

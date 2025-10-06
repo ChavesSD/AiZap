@@ -1,45 +1,51 @@
 <template>
-  <div class="settings-container">
-    <!-- Settings Header -->
-    <div class="settings-header">
-      <h2 class="settings-title">
-        <v-icon class="mr-3">mdi-cog</v-icon>
-        Configurações
-      </h2>
-      <p class="settings-subtitle">Gerencie as configurações do sistema</p>
-    </div>
+  <div class="settings-page">
+    <v-container fluid>
+      <v-row justify="center">
+        <v-col cols="12" md="10" lg="8">
+          <!-- Settings Header -->
+          <div class="settings-header">
+            <h2 class="settings-title">
+              <v-icon class="mr-3">mdi-cog</v-icon>
+              Configurações
+            </h2>
+            <p class="settings-subtitle">Gerencie as configurações do sistema</p>
+          </div>
 
-    <!-- Settings Tabs -->
-    <v-tabs
-      v-model="activeTab"
-      color="primary"
-      class="settings-tabs"
-    >
-      <v-tab value="geral">
-        <v-icon start>mdi-information</v-icon>
-        Geral
-      </v-tab>
-      <v-tab value="usuarios">
-        <v-icon start>mdi-account-group</v-icon>
-        Usuários
-      </v-tab>
-      <v-tab value="whatsapp">
-        <v-icon start>mdi-whatsapp</v-icon>
-        WhatsApp
-      </v-tab>
-      <v-tab value="manutencao">
-        <v-icon start>mdi-wrench</v-icon>
-        Manutenção
-      </v-tab>
-      <v-tab value="backup">
-        <v-icon start>mdi-backup-restore</v-icon>
-        Backup
-      </v-tab>
-    </v-tabs>
+          <!-- Settings Content -->
+          <v-card class="settings-content" elevation="4">
+            <!-- Settings Tabs -->
+            <v-tabs
+              v-model="activeTab"
+              color="primary"
+              class="settings-tabs"
+              align-tabs="center"
+              variant="elevated"
+              grow
+            >
+              <v-tab value="geral" class="settings-tab">
+                <v-icon start>mdi-information</v-icon>
+                Geral
+              </v-tab>
+              <v-tab value="usuarios" class="settings-tab">
+                <v-icon start>mdi-account-group</v-icon>
+                Usuários
+              </v-tab>
+              <v-tab value="whatsapp" class="settings-tab">
+                <v-icon start>mdi-whatsapp</v-icon>
+                WhatsApp
+              </v-tab>
+              <v-tab value="manutencao" class="settings-tab">
+                <v-icon start>mdi-wrench</v-icon>
+                Manutenção
+              </v-tab>
+              <v-tab value="backup" class="settings-tab">
+                <v-icon start>mdi-backup-restore</v-icon>
+                Backup
+              </v-tab>
+            </v-tabs>
 
-    <!-- Settings Content -->
-    <v-card class="settings-content">
-      <v-card-text>
+            <v-card-text class="settings-tab-content">
         <!-- Aba Geral -->
         <div v-if="activeTab === 'geral'">
           <h3 class="section-title">Informações Gerais da Empresa</h3>
@@ -262,6 +268,15 @@
             :loading="loadingUsers"
             class="elevation-1"
           >
+            <template v-slot:item.photo="{ item }">
+              <v-avatar size="40">
+                <v-img v-if="item.photo" :src="item.photo" />
+                <v-icon v-else>mdi-account</v-icon>
+              </v-avatar>
+            </template>
+            <template v-slot:item.fullName="{ item }">
+              {{ `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Nome não informado' }}
+            </template>
             <template v-slot:item.role="{ item }">
               <v-chip
                 :color="item.role === 'admin' ? 'error' : 'primary'"
@@ -300,53 +315,198 @@
         <div v-if="activeTab === 'whatsapp'">
           <h3 class="section-title">Configurações da API WhatsApp</h3>
           
-          <v-form ref="whatsappForm" v-model="whatsappFormValid">
-            <v-row>
-              <v-col cols="12" md="6">
-                <v-select
-                  v-model="whatsappSettings.provider"
-                  :items="whatsappProviders"
-                  label="Provedor da API"
-                  variant="outlined"
-                  @update:model-value="onProviderChange"
-                />
-              </v-col>
-              <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="whatsappSettings.apiUrl"
-                  label="URL da API"
-                  variant="outlined"
-                  :rules="[v => !!v || 'URL é obrigatória']"
-                  required
-                />
-              </v-col>
-              <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="whatsappSettings.apiKey"
-                  label="API Key"
-                  variant="outlined"
-                  type="password"
-                  :rules="[v => !!v || 'API Key é obrigatória']"
-                  required
-                />
-              </v-col>
-              <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="whatsappSettings.webhookUrl"
-                  label="Webhook URL"
-                  variant="outlined"
-                />
-              </v-col>
-              <v-col cols="12">
-                <v-textarea
-                  v-model="whatsappSettings.webhookSecret"
-                  label="Webhook Secret"
-                  variant="outlined"
-                  rows="2"
-                />
-              </v-col>
-            </v-row>
-          </v-form>
+          <!-- API Mode Selector -->
+          <v-card class="mb-6" variant="outlined">
+            <v-card-title>
+              <v-icon class="mr-2">mdi-swap-horizontal</v-icon>
+              Modo de API
+            </v-card-title>
+            <v-card-text>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-card 
+                    :color="apiMode === 'primary' ? 'primary' : 'grey-lighten-1'"
+                    :variant="apiMode === 'primary' ? 'elevated' : 'outlined'"
+                    class="api-mode-card"
+                    @click="setApiMode('primary')"
+                  >
+                    <v-card-text class="text-center">
+                      <v-icon size="48" :color="apiMode === 'primary' ? 'white' : 'primary'">
+                        mdi-api
+                      </v-icon>
+                      <h4 class="mt-2" :style="{ color: apiMode === 'primary' ? 'white' : 'inherit' }">
+                        API Principal
+                      </h4>
+                      <p :style="{ color: apiMode === 'primary' ? 'rgba(255,255,255,0.8)' : '#666' }">
+                        API oficial do WhatsApp (Meta, Twilio, etc.)
+                      </p>
+                      <v-chip 
+                        v-if="apiMode === 'primary'"
+                        color="white"
+                        text-color="primary"
+                        size="small"
+                      >
+                        Ativa
+                      </v-chip>
+                    </v-card-text>
+                  </v-card>
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-card 
+                    :color="apiMode === 'secondary' ? 'success' : 'grey-lighten-1'"
+                    :variant="apiMode === 'secondary' ? 'elevated' : 'outlined'"
+                    class="api-mode-card"
+                    @click="setApiMode('secondary')"
+                  >
+                    <v-card-text class="text-center">
+                      <v-icon size="48" :color="apiMode === 'secondary' ? 'white' : 'success'">
+                        mdi-whatsapp
+                      </v-icon>
+                      <h4 class="mt-2" :style="{ color: apiMode === 'secondary' ? 'white' : 'inherit' }">
+                        API Secundária
+                      </h4>
+                      <p :style="{ color: apiMode === 'secondary' ? 'rgba(255,255,255,0.8)' : '#666' }">
+                        WhatsApp Web.js (Temporário)
+                      </p>
+                      <v-chip 
+                        v-if="apiMode === 'secondary'"
+                        color="white"
+                        text-color="success"
+                        size="small"
+                      >
+                        Ativa
+                      </v-chip>
+                    </v-card-text>
+                  </v-card>
+                </v-col>
+              </v-row>
+              
+              <v-alert 
+                v-if="apiMode === 'secondary'"
+                type="info" 
+                variant="tonal" 
+                class="mt-4"
+              >
+                <template v-slot:prepend>
+                  <v-icon>mdi-information</v-icon>
+                </template>
+                <div>
+                  <strong>API Secundária Ativa:</strong> Usando WhatsApp Web.js como solução temporária.
+                  <br>
+                  <strong>Para conectar:</strong> Acesse a página <router-link to="/connect" class="text-decoration-none">Conectar</router-link> e escaneie o QR Code.
+                </div>
+              </v-alert>
+            </v-card-text>
+          </v-card>
+          
+          <!-- Primary API Configuration -->
+          <v-card v-if="apiMode === 'primary'" variant="outlined">
+            <v-card-title>
+              <v-icon class="mr-2">mdi-cog</v-icon>
+              Configurações da API Principal
+            </v-card-title>
+            <v-card-text>
+              <v-form ref="whatsappForm" v-model="whatsappFormValid">
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-select
+                      v-model="whatsappSettings.provider"
+                      :items="whatsappProviders"
+                      label="Provedor da API"
+                      variant="outlined"
+                      @update:model-value="onProviderChange"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="whatsappSettings.apiUrl"
+                      label="URL da API"
+                      variant="outlined"
+                      :rules="[v => !!v || 'URL é obrigatória']"
+                      required
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="whatsappSettings.apiKey"
+                      label="API Key"
+                      variant="outlined"
+                      type="password"
+                      :rules="[v => !!v || 'API Key é obrigatória']"
+                      required
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="whatsappSettings.webhookUrl"
+                      label="Webhook URL"
+                      variant="outlined"
+                    />
+                  </v-col>
+                  <v-col cols="12">
+                    <v-textarea
+                      v-model="whatsappSettings.webhookSecret"
+                      label="Webhook Secret"
+                      variant="outlined"
+                      rows="2"
+                    />
+                  </v-col>
+                </v-row>
+              </v-form>
+            </v-card-text>
+          </v-card>
+          
+          <!-- Secondary API Status -->
+          <v-card v-if="apiMode === 'secondary'" variant="outlined">
+            <v-card-title>
+              <v-icon class="mr-2">mdi-whatsapp</v-icon>
+              Status da API Secundária (WhatsApp Web.js)
+            </v-card-title>
+            <v-card-text>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-chip 
+                    :color="secondaryApiStatus.isConnected ? 'success' : 'warning'"
+                    variant="tonal"
+                    size="large"
+                    class="mb-2"
+                  >
+                    <v-icon start>{{ secondaryApiStatus.isConnected ? 'mdi-check-circle' : 'mdi-clock' }}</v-icon>
+                    {{ secondaryApiStatus.isConnected ? 'Conectado' : 'Aguardando Conexão' }}
+                  </v-chip>
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-chip 
+                    :color="getStatusColor(secondaryApiStatus.status)"
+                    variant="tonal"
+                    size="large"
+                  >
+                    <v-icon start>{{ getStatusIcon(secondaryApiStatus.status) }}</v-icon>
+                    {{ getStatusText(secondaryApiStatus.status) }}
+                  </v-chip>
+                </v-col>
+              </v-row>
+              
+              <div class="mt-4">
+                <v-btn
+                  color="primary"
+                  @click="goToConnect"
+                  class="mr-2"
+                >
+                  <v-icon start>mdi-link</v-icon>
+                  Ir para Página de Conexão
+                </v-btn>
+                <v-btn
+                  color="info"
+                  @click="refreshSecondaryStatus"
+                  :loading="refreshingSecondary"
+                >
+                  <v-icon start>mdi-refresh</v-icon>
+                  Atualizar Status
+                </v-btn>
+              </div>
+            </v-card-text>
+          </v-card>
 
           <v-divider class="my-6" />
 
@@ -589,9 +749,13 @@
         </div>
       </v-card-text>
     </v-card>
+    </v-col>
+  </v-row>
+</v-container>
+</div>
 
-    <!-- User Dialog -->
-    <v-dialog v-model="userDialog" max-width="800px" scrollable>
+<!-- User Dialog -->
+<v-dialog v-model="userDialog" max-width="800px" scrollable>
       <v-card>
         <v-card-title class="d-flex align-center">
           <v-icon class="mr-2">{{ editingUser ? 'mdi-account-edit' : 'mdi-account-plus' }}</v-icon>
@@ -633,6 +797,21 @@
                     @change="handlePhotoUpload"
                     class="mt-2"
                   />
+                  <v-alert
+                    type="info"
+                    variant="tonal"
+                    density="compact"
+                    class="mt-2"
+                  >
+                    <template v-slot:prepend>
+                      <v-icon>mdi-information</v-icon>
+                    </template>
+                    <div class="text-caption">
+                      <strong>Dimensões recomendadas:</strong> 400x400 pixels<br>
+                      <strong>Formatos aceitos:</strong> JPG, PNG, WebP<br>
+                      <strong>Tamanho máximo:</strong> 2MB
+                    </div>
+                  </v-alert>
                 </v-col>
                 
                 <v-col cols="12" md="6">
@@ -790,14 +969,12 @@
             color="primary"
             @click="saveUser"
             :loading="savingUser"
-            :disabled="!userFormValid"
           >
             {{ editingUser ? 'Atualizar' : 'Criar' }}
           </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
-  </div>
 </template>
 
 <script>
@@ -863,6 +1040,15 @@ export default {
       readReceipts: true,
       typingIndicator: true
     })
+    
+    // API Mode
+    const apiMode = ref('secondary') // Default to secondary since it's the only one working
+    const secondaryApiStatus = ref({
+      isConnected: false,
+      status: 'disconnected'
+    })
+    const refreshingSecondary = ref(false)
+    
     
     // Backup Settings
     const backupSettings = reactive({
@@ -945,7 +1131,8 @@ export default {
     ]
     
     const userHeaders = [
-      { title: 'Nome', key: 'name' },
+      { title: 'Foto', key: 'photo', sortable: false },
+      { title: 'Nome', key: 'fullName' },
       { title: 'Email', key: 'email' },
       { title: 'Função', key: 'role' },
       { title: 'Status', key: 'isActive' },
@@ -1044,11 +1231,24 @@ export default {
     const saveWhatsAppSettings = async () => {
       saving.value = true
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        console.log('Configurações WhatsApp salvas:', whatsappSettings)
+        const response = await fetch('http://localhost:3001/settings/whatsapp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(whatsappSettings)
+        })
+        
+        if (!response.ok) {
+          throw new Error('Erro ao salvar configurações')
+        }
+        
+        const result = await response.json()
+        console.log('✅ Configurações WhatsApp salvas:', result)
+        alert('Configurações salvas com sucesso!')
       } catch (error) {
         console.error('Erro ao salvar configurações WhatsApp:', error)
+        alert('Erro ao salvar configurações: ' + error.message)
       } finally {
         saving.value = false
       }
@@ -1057,11 +1257,33 @@ export default {
     const testConnection = async () => {
       testing.value = true
       try {
-        // Simulate API test
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        console.log('Teste de conexão realizado')
+        const response = await fetch('http://localhost:3001/whatsapp/test', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            provider: whatsappSettings.provider,
+            apiUrl: whatsappSettings.apiUrl,
+            apiKey: whatsappSettings.apiKey
+          })
+        })
+        
+        if (!response.ok) {
+          throw new Error('Erro no teste de conexão')
+        }
+        
+        const result = await response.json()
+        console.log('🧪 Resultado do teste:', result)
+        
+        if (result.success) {
+          alert(`✅ Teste de conexão bem-sucedido!\nStatus: ${result.status}\nMensagem: ${result.message}`)
+        } else {
+          alert(`❌ Falha no teste de conexão!\nErro: ${result.message}`)
+        }
       } catch (error) {
         console.error('Erro no teste de conexão:', error)
+        alert('Erro no teste de conexão: ' + error.message)
       } finally {
         testing.value = false
       }
@@ -1308,9 +1530,99 @@ export default {
       }
     }
     
+    const loadWhatsAppSettings = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/settings/whatsapp')
+        
+        if (!response.ok) {
+          throw new Error('Erro ao carregar configurações WhatsApp')
+        }
+        
+        const settings = await response.json()
+        
+        // Atualizar os dados reativos
+        Object.assign(whatsappSettings, settings)
+        
+        console.log('📱 Configurações WhatsApp carregadas:', settings)
+      } catch (error) {
+        console.error('Erro ao carregar configurações WhatsApp:', error)
+      }
+    }
+    
+    // API Mode Functions
+    const setApiMode = (mode) => {
+      apiMode.value = mode
+      console.log('🔄 Modo de API alterado para:', mode)
+      
+      if (mode === 'secondary') {
+        refreshSecondaryStatus()
+      }
+    }
+    
+    const refreshSecondaryStatus = async () => {
+      refreshingSecondary.value = true
+      
+      try {
+        const response = await fetch('http://localhost:3001/whatsapp/status')
+        
+        if (!response.ok) {
+          throw new Error('Erro ao obter status da API secundária')
+        }
+        
+        const status = await response.json()
+        secondaryApiStatus.value = status
+        
+        console.log('📊 Status da API secundária atualizado:', status)
+        
+      } catch (error) {
+        console.error('Erro ao atualizar status da API secundária:', error)
+      } finally {
+        refreshingSecondary.value = false
+      }
+    }
+    
+    const goToConnect = () => {
+      // Navigate to connect page
+      window.location.href = '/connect'
+    }
+    
+    // Helper functions for status
+    const getStatusColor = (status) => {
+      const colors = {
+        'connected': 'success',
+        'authenticated': 'info',
+        'disconnected': 'error',
+        'auth_failure': 'error'
+      }
+      return colors[status] || 'warning'
+    }
+    
+    const getStatusIcon = (status) => {
+      const icons = {
+        'connected': 'mdi-check-circle',
+        'authenticated': 'mdi-shield-check',
+        'disconnected': 'mdi-close-circle',
+        'auth_failure': 'mdi-alert-circle'
+      }
+      return icons[status] || 'mdi-help-circle'
+    }
+    
+    const getStatusText = (status) => {
+      const texts = {
+        'connected': 'Conectado',
+        'authenticated': 'Autenticado',
+        'disconnected': 'Desconectado',
+        'auth_failure': 'Falha na Autenticação'
+      }
+      return texts[status] || 'Desconhecido'
+    }
+    
+
     onMounted(() => {
       loadUsers()
       loadGeneralSettings()
+      loadWhatsAppSettings()
+      refreshSecondaryStatus() // Load secondary API status
     })
     
     return {
@@ -1369,50 +1681,43 @@ export default {
       handlePhotoUpload,
       addQuickMessage,
       removeQuickMessage,
-      closeUserDialog
+      closeUserDialog,
+      // API Mode
+      apiMode,
+      secondaryApiStatus,
+      refreshingSecondary,
+      setApiMode,
+      refreshSecondaryStatus,
+      goToConnect,
+      getStatusColor,
+      getStatusIcon,
+      getStatusText
     }
   }
 }
 </script>
 
 <style scoped>
-.settings-container {
+.settings-page {
   padding: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
-  height: calc(100vh - 80px);
-  overflow-y: auto;
-  scroll-behavior: smooth;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
-/* Scrollbar styling */
-.settings-container::-webkit-scrollbar {
-  width: 8px;
-}
-
-.settings-container::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
-}
-
-.settings-container::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 4px;
-}
-
-.settings-container::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
 
 .settings-header {
   margin-bottom: 24px;
+  text-align: center;
 }
 
 .settings-title {
   color: #0c1b23;
   font-size: 28px;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .settings-subtitle {
@@ -1422,12 +1727,129 @@ export default {
 }
 
 .settings-tabs {
-  margin-bottom: 24px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 12px 12px 0 0;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.settings-tab {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0.5px;
+  min-height: 56px;
+  padding: 0 16px;
+  transition: all 0.3s ease;
+  flex: 1;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-tab:hover {
+  background: rgba(25, 118, 210, 0.08);
+  transform: translateY(-1px);
+}
+
+.settings-tab.v-tab--selected {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  color: #1976d2 !important;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2);
+  transform: translateY(-2px);
+  border: 2px solid #1976d2;
+}
+
+.settings-tab.v-tab--selected .v-icon {
+  color: #1976d2 !important;
+}
+
+.settings-tab.v-tab--selected .v-tab__text {
+  color: #1976d2 !important;
+}
+
+.settings-tab-content {
+  padding: 24px;
+  background: white;
+  border-radius: 0 0 12px 12px;
+  min-height: 500px;
 }
 
 .settings-content {
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
   min-height: 600px;
   max-height: none;
+  overflow: hidden;
+}
+
+/* Estilos específicos para as abas */
+.settings-tabs .v-tabs-slider {
+  display: none;
+}
+
+.settings-tabs .v-tab {
+  border-radius: 8px 8px 0 0;
+  margin: 8px 2px 0 2px;
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  max-width: none;
+}
+
+.settings-tabs .v-tab::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.settings-tabs .v-tab:hover::before {
+  opacity: 1;
+}
+
+.settings-tabs .v-tab--selected::before {
+  opacity: 1;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+}
+
+/* Ícones das abas */
+.settings-tab .v-icon {
+  margin-right: 8px;
+  transition: all 0.3s ease;
+}
+
+.settings-tab:hover .v-icon {
+  transform: scale(1.1);
+}
+
+.settings-tab.v-tab--selected .v-icon {
+  transform: scale(1.15);
+  filter: drop-shadow(0 2px 4px rgba(25, 118, 210, 0.3));
+  color: #1976d2 !important;
+}
+
+/* Garantir que o texto seja sempre visível */
+.settings-tab.v-tab--selected * {
+  color: #1976d2 !important;
+}
+
+.settings-tab.v-tab--selected .v-tab__content {
+  color: #1976d2 !important;
+}
+
+.settings-tab.v-tab--selected .v-tab__wrapper {
+  color: #1976d2 !important;
 }
 
 .section-title {
@@ -1470,5 +1892,77 @@ export default {
 .special-hours-card:hover {
   border-color: #1976d2;
   box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
+}
+
+/* API Mode Cards */
+.api-mode-card {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.api-mode-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.api-mode-card[data-selected="true"] {
+  border-color: #1976d2;
+  box-shadow: 0 4px 16px rgba(25, 118, 210, 0.2);
+}
+
+/* Responsividade das abas */
+@media (max-width: 768px) {
+  .settings-tabs {
+    padding: 0;
+  }
+  
+  .settings-tab {
+    min-height: 48px;
+    padding: 0 8px;
+    font-size: 14px;
+    flex: 1;
+  }
+  
+  .settings-tab .v-icon {
+    margin-right: 4px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .settings-tabs {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+  }
+  
+  .settings-tab {
+    flex: 1;
+    min-width: 0;
+    margin: 4px 1px 0 1px;
+    padding: 0 4px;
+    font-size: 12px;
+  }
+  
+  .settings-tab .v-icon {
+    margin-right: 2px;
+    font-size: 14px;
+  }
+  
+  .settings-tab-content {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-tab {
+    font-size: 11px;
+    padding: 0 2px;
+  }
+  
+  .settings-tab .v-icon {
+    font-size: 12px;
+    margin-right: 1px;
+  }
 }
 </style>

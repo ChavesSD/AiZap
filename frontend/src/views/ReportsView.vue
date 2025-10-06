@@ -1,12 +1,18 @@
 <template>
   <div class="reports-page">
     <v-container fluid>
-      <div class="development-message">
-        <v-icon size="64" color="info">mdi-chart-line</v-icon>
-        <h1 class="page-title">Relatórios</h1>
-        <p class="message">Página em desenvolvimento</p>
-        <p class="sub-message">Esta funcionalidade será implementada em breve</p>
-      </div>
+      <v-row justify="center">
+        <v-col cols="12" md="8" lg="6">
+          <v-card class="reports-card" elevation="4">
+            <v-card-text class="text-center pa-8">
+              <v-icon size="64" color="info" class="mb-4">mdi-chart-line</v-icon>
+              <h1 class="page-title">Relatórios</h1>
+              <p class="message">Página em desenvolvimento</p>
+              <p class="sub-message">Esta funcionalidade será implementada em breve</p>
+            </v-card-text>
+          </v-card>
+        </v-col>
+      </v-row>
     </v-container>
   </div>
 </template>
@@ -20,22 +26,22 @@ export default {
 <style scoped>
 .reports-page {
   padding: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 60vh;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
-.development-message {
-  text-align: center;
-  padding: 48px;
+.reports-card {
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .page-title {
   color: #0c1b23;
   margin: 24px 0 16px 0;
   font-size: 28px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .message {

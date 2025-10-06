@@ -6,6 +6,9 @@ const bodyParser = require('body-parser');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+// Usar serviço mock temporariamente devido a problemas com whatsapp-web.js
+const whatsappService = require('./services/whatsappServiceMock');
+const whatsappMultiService = require('./services/whatsappMultiService');
 require('dotenv').config();
 
 const app = express();
@@ -466,6 +469,493 @@ app.post('/settings', async (req, res) => {
     res.status(500).json({
       error: 'Erro interno do servidor'
     });
+  }
+});
+
+// WhatsApp Settings routes
+app.post('/settings/whatsapp', async (req, res) => {
+  try {
+    const whatsappData = req.body;
+    
+    await db.collection('settings').updateOne(
+      { type: 'whatsapp' },
+      { 
+        $set: { 
+          type: 'whatsapp',
+          data: whatsappData,
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true }
+    );
+    
+    res.json({ message: 'Configurações WhatsApp salvas com sucesso' });
+  } catch (error) {
+    console.error('Erro ao salvar configurações WhatsApp:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+app.get('/settings/whatsapp', async (req, res) => {
+  try {
+    const settings = await db.collection('settings').findOne({ type: 'whatsapp' });
+    
+    if (!settings) {
+      return res.json({
+        provider: '',
+        apiUrl: '',
+        apiKey: '',
+        webhookUrl: '',
+        webhookSecret: '',
+        autoReply: false,
+        readReceipts: true,
+        typingIndicator: true
+      });
+    }
+    
+    res.json(settings.data);
+  } catch (error) {
+    console.error('Erro ao buscar configurações WhatsApp:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// WhatsApp webhook endpoint
+app.post('/webhook/whatsapp', async (req, res) => {
+  try {
+    const { body } = req;
+    
+    console.log('📱 Webhook WhatsApp recebido:', JSON.stringify(body, null, 2));
+    
+    // Verificar se é uma mensagem válida
+    if (body.object === 'whatsapp_business_account') {
+      // Processar mensagens recebidas
+      if (body.entry && body.entry[0] && body.entry[0].changes) {
+        const changes = body.entry[0].changes[0];
+        
+        if (changes.field === 'messages') {
+          const messages = changes.value.messages;
+          
+          if (messages) {
+            for (const message of messages) {
+              await processIncomingMessage(message);
+            }
+          }
+        }
+      }
+    }
+    
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Erro no webhook WhatsApp:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// Função para processar mensagens recebidas
+const processIncomingMessage = async (message) => {
+  try {
+    // Salvar mensagem no banco de dados
+    await db.collection('messages').insertOne({
+      messageId: message.id,
+      from: message.from,
+      timestamp: message.timestamp,
+      type: message.type,
+      text: message.text?.body || '',
+      receivedAt: new Date()
+    });
+    
+    console.log('💬 Mensagem processada:', message);
+  } catch (error) {
+    console.error('Erro ao processar mensagem:', error);
+  }
+};
+
+// Teste de conexão WhatsApp
+app.post('/whatsapp/test', async (req, res) => {
+  try {
+    const { provider, apiUrl, apiKey } = req.body;
+    
+    console.log('🧪 Testando conexão WhatsApp:', { provider, apiUrl });
+    
+    // Testar conexão baseada no provedor
+    let testUrl = '';
+    let headers = {};
+    
+    switch (provider) {
+      case 'Meta for Developers':
+      case 'WhatsApp Business API':
+        testUrl = `${apiUrl}/me`;
+        headers = {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        };
+        break;
+      case 'Twilio':
+        testUrl = `${apiUrl}/2010-04-01/Accounts/${apiKey.split(':')[0]}.json`;
+        headers = {
+          'Authorization': `Basic ${Buffer.from(apiKey).toString('base64')}`,
+          'Content-Type': 'application/json'
+        };
+        break;
+      default:
+        testUrl = `${apiUrl}/health`;
+        headers = {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        };
+    }
+    
+    const response = await fetch(testUrl, {
+      method: 'GET',
+      headers: headers
+    });
+    
+    const result = await response.json();
+    console.log('📡 Resposta do teste:', result);
+    
+    res.json({ 
+      success: response.ok,
+      status: response.status,
+      message: response.ok ? 'Conexão bem-sucedida' : 'Falha na conexão',
+      details: result
+    });
+  } catch (error) {
+    console.error('Erro no teste de conexão:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Erro interno do servidor',
+      message: error.message
+    });
+  }
+});
+
+// Enviar mensagem WhatsApp
+app.post('/whatsapp/send', async (req, res) => {
+  try {
+    const { to, message, type = 'text' } = req.body;
+    
+    // Buscar configurações WhatsApp
+    const settings = await db.collection('settings').findOne({ type: 'whatsapp' });
+    
+    if (!settings) {
+      return res.status(400).json({ error: 'Configurações WhatsApp não encontradas' });
+    }
+    
+    // Enviar mensagem via API do WhatsApp
+    const result = await sendWhatsAppMessage(settings.data, to, message, type);
+    
+    res.json({ success: true, messageId: result.id });
+  } catch (error) {
+    console.error('Erro ao enviar mensagem:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// Função para enviar mensagem via API
+const sendWhatsAppMessage = async (settings, to, message, type) => {
+  const url = `${settings.apiUrl}/${settings.phoneNumberId}/messages`;
+  
+  const payload = {
+    messaging_product: 'whatsapp',
+    to: to,
+    type: type,
+    [type]: {
+      body: message
+    }
+  };
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${settings.apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  
+  return await response.json();
+};
+
+// WhatsApp Web.js endpoints
+app.get('/whatsapp/status', async (req, res) => {
+  try {
+    const status = whatsappService.getStatus();
+    res.json(status);
+  } catch (error) {
+    console.error('Erro ao obter status WhatsApp:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+app.get('/whatsapp/qr', async (req, res) => {
+  try {
+    const qrCode = whatsappService.getQRCode();
+    if (qrCode) {
+      res.json({ qrCode: qrCode });
+    } else {
+      res.json({ message: 'QR Code não disponível. Aguarde a geração.' });
+    }
+  } catch (error) {
+    console.error('Erro ao obter QR Code:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+app.post('/whatsapp/initialize', async (req, res) => {
+  try {
+    console.log('🔄 Iniciando WhatsApp via API...');
+    await whatsappService.initialize();
+    res.json({ message: 'WhatsApp Web.js inicializado com sucesso' });
+  } catch (error) {
+    console.error('Erro ao inicializar WhatsApp:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// Endpoint para reinicializar WhatsApp
+app.post('/whatsapp/restart', async (req, res) => {
+  try {
+    console.log('🔄 Reiniciando WhatsApp...');
+    
+    // Desconectar primeiro
+    await whatsappService.disconnect();
+    
+    // Aguardar um pouco
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Reinicializar
+    await whatsappService.initialize();
+    
+    res.json({ message: 'WhatsApp reiniciado com sucesso' });
+  } catch (error) {
+    console.error('Erro ao reiniciar WhatsApp:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// Endpoint para simular conexão (apenas para modo mock)
+app.post('/whatsapp/simulate-connection', async (req, res) => {
+  try {
+    console.log('🔄 Simulando conexão WhatsApp...');
+    
+    const connected = await whatsappService.simulateConnection();
+    
+    if (connected) {
+      res.json({ message: 'WhatsApp conectado com sucesso (Simulação)' });
+    } else {
+      res.status(400).json({ error: 'QR Code não disponível para conexão' });
+    }
+  } catch (error) {
+    console.error('Erro ao simular conexão WhatsApp:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// ===== ENDPOINTS PARA MÚLTIPLAS INSTÂNCIAS =====
+
+// Criar nova instância
+app.post('/whatsapp/instances', async (req, res) => {
+  try {
+    const { instanceId, config } = req.body;
+    
+    if (!instanceId) {
+      return res.status(400).json({ error: 'instanceId é obrigatório' });
+    }
+
+    await whatsappMultiService.createInstance(instanceId, config);
+    res.json({ 
+      message: 'Instância criada com sucesso', 
+      instanceId,
+      status: 'created'
+    });
+  } catch (error) {
+    console.error('Erro ao criar instância:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// Listar todas as instâncias
+app.get('/whatsapp/instances', async (req, res) => {
+  try {
+    const instances = whatsappMultiService.getAllInstancesStatus();
+    res.json(instances);
+  } catch (error) {
+    console.error('Erro ao listar instâncias:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// Obter status de uma instância específica
+app.get('/whatsapp/instances/:instanceId', async (req, res) => {
+  try {
+    const { instanceId } = req.params;
+    const status = whatsappMultiService.getInstanceStatus(instanceId);
+    
+    if (!status) {
+      return res.status(404).json({ error: 'Instância não encontrada' });
+    }
+    
+    res.json(status);
+  } catch (error) {
+    console.error('Erro ao obter status da instância:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// Inicializar instância específica
+app.post('/whatsapp/instances/:instanceId/initialize', async (req, res) => {
+  try {
+    const { instanceId } = req.params;
+    
+    await whatsappMultiService.initializeInstance(instanceId);
+    res.json({ 
+      message: `Instância ${instanceId} inicializada com sucesso`,
+      instanceId
+    });
+  } catch (error) {
+    console.error('Erro ao inicializar instância:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// Simular conexão de uma instância específica
+app.post('/whatsapp/instances/:instanceId/simulate-connection', async (req, res) => {
+  try {
+    const { instanceId } = req.params;
+    
+    const connected = await whatsappMultiService.simulateConnection(instanceId);
+    
+    if (connected) {
+      res.json({ 
+        message: `Instância ${instanceId} conectada com sucesso (Simulação)`,
+        instanceId
+      });
+    } else {
+      res.status(400).json({ 
+        error: 'QR Code não disponível para conexão',
+        instanceId
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao simular conexão da instância:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// Desconectar instância específica
+app.post('/whatsapp/instances/:instanceId/disconnect', async (req, res) => {
+  try {
+    const { instanceId } = req.params;
+    
+    await whatsappMultiService.disconnectInstance(instanceId);
+    res.json({ 
+      message: `Instância ${instanceId} desconectada com sucesso`,
+      instanceId
+    });
+  } catch (error) {
+    console.error('Erro ao desconectar instância:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// Remover instância
+app.delete('/whatsapp/instances/:instanceId', async (req, res) => {
+  try {
+    const { instanceId } = req.params;
+    
+    await whatsappMultiService.removeInstance(instanceId);
+    res.json({ 
+      message: `Instância ${instanceId} removida com sucesso`,
+      instanceId
+    });
+  } catch (error) {
+    console.error('Erro ao remover instância:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// Enviar mensagem de uma instância específica
+app.post('/whatsapp/instances/:instanceId/send', async (req, res) => {
+  try {
+    const { instanceId } = req.params;
+    const { to, message, media } = req.body;
+    
+    const result = await whatsappMultiService.sendMessage(instanceId, to, message, media);
+    res.json(result);
+  } catch (error) {
+    console.error('Erro ao enviar mensagem da instância:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+app.post('/whatsapp/send-message', async (req, res) => {
+  try {
+    const { to, message, media } = req.body;
+    
+    if (!whatsappService.isReady()) {
+      return res.status(400).json({ error: 'WhatsApp não está conectado' });
+    }
+    
+    const result = await whatsappService.sendMessage(to, message, media);
+    res.json(result);
+  } catch (error) {
+    console.error('Erro ao enviar mensagem WhatsApp:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+app.post('/whatsapp/disconnect', async (req, res) => {
+  try {
+    await whatsappService.disconnect();
+    res.json({ message: 'WhatsApp desconectado com sucesso' });
+  } catch (error) {
+    console.error('Erro ao desconectar WhatsApp:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// Endpoint para obter mensagens
+app.get('/whatsapp/messages', async (req, res) => {
+  try {
+    const messages = await db.collection('messages').find({}).sort({ receivedAt: -1 }).limit(50).toArray();
+    res.json(messages);
+  } catch (error) {
+    console.error('Erro ao buscar mensagens:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
 

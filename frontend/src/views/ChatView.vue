@@ -132,6 +132,7 @@
           hide-details
           class="message-input"
           @keydown.enter.prevent="sendMessage"
+          @input="handleInput"
         />
       </div>
 
@@ -201,11 +202,13 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 
 export default {
   name: 'ChatView',
   setup() {
+    const authStore = useAuthStore()
     const messages = ref([
       {
         id: 1,
@@ -300,9 +303,17 @@ export default {
     const sendMessage = () => {
       if (!newMessage.value.trim()) return
       
+      // Processar mensagens rápidas primeiro
+      let messageText = processQuickMessages(newMessage.value.trim())
+      
+      // Aplicar capitalização automática se habilitada
+      if (authStore.user?.autoCapitalization) {
+        messageText = capitalizeFirstLetter(messageText)
+      }
+      
       const message = {
         id: Date.now(),
-        text: newMessage.value.trim(),
+        text: messageText,
         sender: 'user',
         timestamp: new Date()
       }
@@ -449,8 +460,118 @@ export default {
       })
     }
     
+    const capitalizeFirstLetter = (text) => {
+      if (!text || text.length === 0) return text
+      return text.charAt(0).toUpperCase() + text.slice(1)
+    }
+    
+    // Função para detectar e substituir atalhos de mensagens rápidas
+    const processQuickMessages = (text) => {
+      if (!authStore.user?.quickMessages || authStore.user.quickMessages.length === 0) {
+        return text
+      }
+      
+      let processedText = text
+      
+      // Procurar por atalhos no texto
+      authStore.user.quickMessages.forEach(quickMessage => {
+        if (quickMessage.shortcut && quickMessage.text) {
+          // Criar regex para encontrar o atalho no início da linha ou após espaço
+          const shortcutRegex = new RegExp(`(^|\\s)${quickMessage.shortcut}(?=\\s|$)`, 'g')
+          processedText = processedText.replace(shortcutRegex, `$1${quickMessage.text}`)
+        }
+      })
+      
+      return processedText
+    }
+    
+    // Função para lidar com input em tempo real
+    const handleInput = (event) => {
+      const inputValue = event.target.value
+      console.log('🔍 Input detectado:', inputValue)
+      console.log('👤 Usuário atual:', authStore.user)
+      console.log('📋 Mensagens rápidas disponíveis:', authStore.user?.quickMessages)
+      console.log('📊 Quantidade de mensagens rápidas:', authStore.user?.quickMessages?.length || 0)
+      
+      if (inputValue && authStore.user?.quickMessages && authStore.user.quickMessages.length > 0) {
+        console.log('🔍 Verificando atalhos no texto:', inputValue)
+        
+        // Verificar cada mensagem rápida individualmente
+        authStore.user.quickMessages.forEach((qm, index) => {
+          console.log(`   ${index + 1}. Atalho: "${qm.shortcut}", Texto: "${qm.text}"`)
+          if (qm.shortcut && qm.text && inputValue.includes(qm.shortcut)) {
+            console.log(`   ✅ Atalho "${qm.shortcut}" encontrado no texto!`)
+          }
+        })
+        
+        // Verificar se há atalhos no texto
+        const hasShortcut = authStore.user.quickMessages.some(qm => 
+          qm.shortcut && qm.text && inputValue.includes(qm.shortcut)
+        )
+        
+        console.log('🎯 Tem atalho?', hasShortcut)
+        
+        if (hasShortcut) {
+          console.log('✅ Atalho detectado, aplicando substituição...')
+          // Aplicar substituição
+          const processedText = processQuickMessages(inputValue)
+          console.log('🔄 Texto original:', inputValue)
+          console.log('🔄 Texto processado:', processedText)
+          console.log('🔄 Textos são diferentes?', processedText !== inputValue)
+          
+          if (processedText !== inputValue) {
+            console.log('🔄 Substituindo:', inputValue, '->', processedText)
+            newMessage.value = processedText
+          } else {
+            console.log('⚠️ Nenhuma substituição foi feita')
+          }
+        } else {
+          console.log('❌ Nenhum atalho detectado')
+        }
+      } else {
+        console.log('❌ Condições não atendidas:')
+        console.log('   - InputValue existe?', !!inputValue)
+        console.log('   - Usuário existe?', !!authStore.user)
+        console.log('   - QuickMessages existe?', !!authStore.user?.quickMessages)
+        console.log('   - QuickMessages tem itens?', authStore.user?.quickMessages?.length > 0)
+      }
+    }
+    
+    // Função para recarregar dados do usuário
+    const reloadUserData = async () => {
+      try {
+        console.log('🔄 Iniciando recarregamento de dados do usuário...')
+        console.log('👤 Usuário atual no store:', authStore.user)
+        
+        const response = await fetch('http://localhost:3001/users')
+        console.log('📡 Resposta da API:', response.status, response.ok)
+        
+        if (response.ok) {
+          const users = await response.json()
+          console.log('📋 Todos os usuários da API:', users)
+          
+          const currentUser = users.find(u => u.email === authStore.user?.email)
+          console.log('🔍 Usuário encontrado na API:', currentUser)
+          
+          if (currentUser) {
+            console.log('📝 Mensagens rápidas do usuário encontrado:', currentUser.quickMessages)
+            authStore.updateUser(currentUser)
+            console.log('✅ Dados do usuário atualizados no store')
+            console.log('👤 Usuário atualizado no store:', authStore.user)
+          } else {
+            console.log('❌ Usuário não encontrado na API')
+          }
+        } else {
+          console.log('❌ Erro na resposta da API:', response.status)
+        }
+      } catch (error) {
+        console.error('❌ Erro ao recarregar dados do usuário:', error)
+      }
+    }
+    
     onMounted(() => {
       scrollToBottom()
+      reloadUserData() // Recarregar dados do usuário ao montar o componente
     })
     
     return {
@@ -476,7 +597,11 @@ export default {
       startRecording,
       stopRecording,
       scrollToBottom,
-      formatTime
+      formatTime,
+      capitalizeFirstLetter,
+      processQuickMessages,
+      reloadUserData,
+      handleInput
     }
   }
 }
@@ -486,7 +611,7 @@ export default {
 .chat-container {
   display: flex;
   height: calc(100vh - 80px); /* Subtrai altura do app-bar + margem */
-  background: white;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   overflow: hidden;
   max-height: calc(100vh - 80px);
 }
@@ -496,10 +621,12 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 12px 24px;
-  border-bottom: 1px solid #e0e0e0;
-  background: white;
+  border-bottom: 1px solid rgba(224, 224, 224, 0.3);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
   flex-shrink: 0; /* Não encolhe */
   height: 60px; /* Altura menor */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .chat-info {
@@ -540,7 +667,7 @@ export default {
   flex: 1;
   overflow-y: auto;
   padding: 16px 24px;
-  background: #f5f5f5;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   min-height: 0; /* Permite que o flex funcione corretamente */
 }
 
@@ -603,11 +730,13 @@ export default {
   align-items: flex-end;
   gap: 12px;
   padding: 12px 24px;
-  background: white;
-  border-top: 1px solid #e0e0e0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(224, 224, 224, 0.3);
   flex-shrink: 0; /* Não encolhe */
   min-height: 60px; /* Altura menor */
   position: relative;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .input-actions {
@@ -648,11 +777,13 @@ export default {
 .conversations-sidebar {
   width: 380px;
   height: 100%;
-  background: white;
-  border-right: 1px solid #e0e0e0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-right: 1px solid rgba(224, 224, 224, 0.3);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
 }
 
 .chat-area {
