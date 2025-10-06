@@ -91,9 +91,6 @@ const createAdminUser = async () => {
   }
 };
 
-// Connect to MongoDB
-connectDB();
-
 // Middleware
 app.use(helmet());
 app.use(compression());
@@ -959,6 +956,504 @@ app.get('/whatsapp/messages', async (req, res) => {
   }
 });
 
+// ===== CONTATOS (CRUD + SYNC) =====
+
+// Listar contatos
+app.get('/contacts', async (req, res) => {
+  try {
+    const { search } = req.query;
+    const filter = {};
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } },
+        { notes: { $regex: search, $options: 'i' } }
+      ];
+    }
+    const contacts = await db.collection('contacts')
+      .find(filter)
+      .sort({ updatedAt: -1 })
+      .toArray();
+    res.json(contacts);
+  } catch (error) {
+    console.error('Erro ao listar contatos:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// Criar contato
+app.post('/contacts', async (req, res) => {
+  try {
+    const { name, phone, labels = [], notes = '' } = req.body;
+    if (!name || !phone) {
+      return res.status(400).json({ error: 'Nome e telefone são obrigatórios' });
+    }
+    const existing = await db.collection('contacts').findOne({ phone });
+    if (existing) {
+      return res.status(400).json({ error: 'Já existe um contato com este telefone' });
+    }
+    const contact = { name, phone, labels, notes, createdAt: new Date(), updatedAt: new Date() };
+    const result = await db.collection('contacts').insertOne(contact);
+    res.json({ ...contact, _id: result.insertedId });
+  } catch (error) {
+    console.error('Erro ao criar contato:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// Atualizar contato
+app.put('/contacts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, phone, labels = [], notes = '' } = req.body;
+    if (!name || !phone) {
+      return res.status(400).json({ error: 'Nome e telefone são obrigatórios' });
+    }
+    const update = { name, phone, labels, notes, updatedAt: new Date() };
+    const result = await db.collection('contacts').updateOne({ _id: new ObjectId(id) }, { $set: update });
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Contato não encontrado' });
+    }
+    res.json({ _id: id, ...update });
+  } catch (error) {
+    console.error('Erro ao atualizar contato:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// Excluir contato
+app.delete('/contacts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.collection('contacts').deleteOne({ _id: new ObjectId(id) });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Contato não encontrado' });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Erro ao excluir contato:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// Sincronizar contatos com base em mensagens e mock do WhatsApp
+app.post('/contacts/sync', async (req, res) => {
+  try {
+    // Coletar números diferentes presentes nas mensagens recebidas/enviadas
+    const distinctNumbers = await db.collection('messages').distinct('from');
+    const normalized = distinctNumbers
+      .filter(Boolean)
+      .map(num => String(num).replace(/[^0-9]/g, ''))
+      .filter(n => n.length >= 8);
+
+    let created = 0;
+    for (const phone of normalized) {
+      const exists = await db.collection('contacts').findOne({ phone });
+      if (!exists) {
+        const name = `Contato ${phone.slice(-4)}`;
+        await db.collection('contacts').insertOne({
+          name,
+          phone,
+          labels: [],
+          notes: '',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        created++;
+      }
+    }
+
+    // Registrar histórico
+    await db.collection('contact_sync_history').insertOne({
+      syncedAt: new Date(),
+      created
+    });
+
+    res.json({ success: true, created, totalCandidates: normalized.length });
+  } catch (error) {
+    console.error('Erro ao sincronizar contatos:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// ===== ROTAS DE BACKUP =====
+
+// Exportar backup
+app.post('/backup/export', async (req, res) => {
+  try {
+    const { frequency, retention, startDate, endDate } = req.body;
+    
+    console.log(`📦 Iniciando export de backup...`);
+    console.log(`📊 Configurações: Frequência=${frequency} dias, Retenção=${retention}`);
+    
+    // Simular coleta de dados do banco
+    const backupData = {
+      metadata: {
+        exportDate: new Date().toISOString(),
+        frequency: frequency || 7,
+        retention: retention || '30dias',
+        startDate: startDate || null,
+        endDate: endDate || null,
+        version: '1.0.0'
+      },
+      users: await db.collection('users').find({}).toArray(),
+      settings: await db.collection('settings').find({}).toArray(),
+      messages: await db.collection('messages').find({}).limit(1000).toArray()
+    };
+    
+    // Remover senhas dos usuários
+    backupData.users = backupData.users.map(user => {
+      const { password, ...userWithoutPassword } = user;
+      return userWithoutPassword;
+    });
+    
+    // Configurar headers para download
+    const filename = `aizap_backup_${new Date().toISOString().split('T')[0]}.json`;
+    
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    res.json(backupData);
+    
+    console.log(`✅ Backup exportado com sucesso: ${filename}`);
+    
+  } catch (error) {
+    console.error('Erro ao exportar backup:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// Importar backup
+app.post('/backup/import', async (req, res) => {
+  try {
+    const backupData = req.body;
+    
+    if (!backupData || !backupData.metadata) {
+      return res.status(400).json({ error: 'Dados de backup inválidos' });
+    }
+    
+    console.log(`📥 Iniciando import de backup...`);
+    console.log(`📊 Backup de: ${backupData.metadata.exportDate}`);
+    
+    let importedCount = 0;
+    
+    // Importar usuários (se existirem)
+    if (backupData.users && Array.isArray(backupData.users)) {
+      for (const user of backupData.users) {
+        // Verificar se usuário já existe
+        const existingUser = await db.collection('users').findOne({ email: user.email });
+        if (!existingUser) {
+          await db.collection('users').insertOne({
+            ...user,
+            importedAt: new Date()
+          });
+          importedCount++;
+        }
+      }
+    }
+    
+    // Importar configurações (se existirem)
+    if (backupData.settings && Array.isArray(backupData.settings)) {
+      for (const setting of backupData.settings) {
+        await db.collection('settings').updateOne(
+          { type: setting.type },
+          { 
+            $set: { 
+              ...setting,
+              importedAt: new Date()
+            }
+          },
+          { upsert: true }
+        );
+        importedCount++;
+      }
+    }
+    
+    // Importar mensagens (se existirem)
+    if (backupData.messages && Array.isArray(backupData.messages)) {
+      for (const message of backupData.messages) {
+        // Verificar se mensagem já existe
+        const existingMessage = await db.collection('messages').findOne({ messageId: message.messageId });
+        if (!existingMessage) {
+          await db.collection('messages').insertOne({
+            ...message,
+            importedAt: new Date()
+          });
+          importedCount++;
+        }
+      }
+    }
+    
+    // Registrar histórico de import
+    await db.collection('backup_history').insertOne({
+      type: 'import',
+      filename: `backup_${backupData.metadata.exportDate}`,
+      importedAt: new Date(),
+      recordsCount: importedCount,
+      metadata: backupData.metadata
+    });
+    
+    res.json({
+      success: true,
+      message: 'Backup importado com sucesso',
+      importedCount,
+      metadata: backupData.metadata
+    });
+    
+    console.log(`✅ Backup importado com sucesso: ${importedCount} registros`);
+    
+  } catch (error) {
+    console.error('Erro ao importar backup:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// Histórico de backups
+app.get('/backup/history', async (req, res) => {
+  try {
+    const history = await db.collection('backup_history')
+      .find({})
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .toArray();
+    
+    res.json(history);
+  } catch (error) {
+    console.error('Erro ao buscar histórico de backups:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// Salvar configurações de backup
+app.post('/backup/settings', async (req, res) => {
+  try {
+    const backupSettings = req.body;
+    
+    await db.collection('settings').updateOne(
+      { type: 'backup' },
+      { 
+        $set: { 
+          type: 'backup',
+          data: backupSettings,
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true }
+    );
+    
+    res.json({ message: 'Configurações de backup salvas com sucesso' });
+  } catch (error) {
+    console.error('Erro ao salvar configurações de backup:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// Buscar configurações de backup
+app.get('/backup/settings', async (req, res) => {
+  try {
+    const settings = await db.collection('settings').findOne({ type: 'backup' });
+    
+    if (!settings) {
+      return res.json({
+        frequency: 7,
+        retention: '30dias',
+        startDate: '',
+        endDate: ''
+      });
+    }
+    
+    res.json(settings.data);
+  } catch (error) {
+    console.error('Erro ao buscar configurações de backup:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// ===== ROTAS DE MANUTENÇÃO =====
+
+// Limpeza de dados antigos
+app.post('/maintenance/cleanup', async (req, res) => {
+  try {
+    const { date, type } = req.body;
+    
+    if (!date) {
+      return res.status(400).json({ error: 'Data é obrigatória' });
+    }
+    
+    const cutoffDate = new Date(date);
+    let deletedCount = 0;
+    
+    console.log(`🧹 Iniciando limpeza de dados anteriores a ${cutoffDate.toISOString()}`);
+    
+    // Limpar dados baseado no tipo selecionado
+    switch (type) {
+      case 'messages':
+        const messagesResult = await db.collection('messages').deleteMany({
+          receivedAt: { $lt: cutoffDate }
+        });
+        deletedCount += messagesResult.deletedCount;
+        console.log(`📱 Removidas ${messagesResult.deletedCount} mensagens antigas`);
+        break;
+        
+      case 'logs':
+        // Simular remoção de logs (em produção, você teria uma coleção de logs)
+        console.log(`📋 Logs anteriores a ${cutoffDate.toISOString()} seriam removidos`);
+        break;
+        
+      case 'inactive_users':
+        const usersResult = await db.collection('users').deleteMany({
+          isActive: false,
+          lastLoginAt: { $lt: cutoffDate }
+        });
+        deletedCount += usersResult.deletedCount;
+        console.log(`👤 Removidos ${usersResult.deletedCount} usuários inativos`);
+        break;
+        
+      case 'temp_files':
+        // Simular remoção de arquivos temporários
+        console.log(`🗂️ Arquivos temporários anteriores a ${cutoffDate.toISOString()} seriam removidos`);
+        break;
+        
+      case 'cache_sessions':
+        // Simular limpeza de cache e sessões
+        console.log(`💾 Cache e sessões anteriores a ${cutoffDate.toISOString()} seriam limpos`);
+        break;
+        
+      case 'all':
+        // Remover todos os tipos de dados antigos
+        const allMessagesResult = await db.collection('messages').deleteMany({
+          receivedAt: { $lt: cutoffDate }
+        });
+        deletedCount += allMessagesResult.deletedCount;
+        
+        const allUsersResult = await db.collection('users').deleteMany({
+          isActive: false,
+          lastLoginAt: { $lt: cutoffDate }
+        });
+        deletedCount += allUsersResult.deletedCount;
+        
+        console.log(`🧹 Limpeza completa: ${deletedCount} registros removidos`);
+        break;
+        
+      default:
+        return res.status(400).json({ error: 'Tipo de dados inválido' });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Limpeza de dados realizada com sucesso',
+      deletedCount,
+      cutoffDate: cutoffDate.toISOString(),
+      type
+    });
+    
+  } catch (error) {
+    console.error('Erro na limpeza de dados:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// Download de logs
+app.post('/maintenance/logs/download', async (req, res) => {
+  try {
+    const { startDate, endDate, level, format } = req.body;
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'Data inicial e final são obrigatórias' });
+    }
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    console.log(`📥 Gerando download de logs de ${start.toISOString()} até ${end.toISOString()}`);
+    
+    // Simular geração de logs (em produção, você buscaria logs reais do banco ou arquivos)
+    const mockLogs = generateMockLogs(start, end, level, format);
+    
+    // Configurar headers para download
+    const filename = `logs_${startDate}_to_${endDate}.${format === 'json' ? 'json' : 'txt'}`;
+    
+    res.setHeader('Content-Type', format === 'json' ? 'application/json' : 'text/plain');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    res.send(mockLogs);
+    
+  } catch (error) {
+    console.error('Erro no download de logs:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// Função para gerar logs simulados
+const generateMockLogs = (startDate, endDate, level, format) => {
+  const logs = [];
+  const currentDate = new Date(startDate);
+  
+  while (currentDate <= endDate) {
+    // Gerar alguns logs por dia
+    for (let i = 0; i < Math.floor(Math.random() * 10) + 5; i++) {
+      const logLevels = ['debug', 'info', 'warn', 'error'];
+      const randomLevel = logLevels[Math.floor(Math.random() * logLevels.length)];
+      
+      // Filtrar por nível se especificado
+      if (level && level !== 'debug') {
+        const levelPriority = { 'error': 4, 'warn': 3, 'info': 2, 'debug': 1 };
+        if (levelPriority[randomLevel] < levelPriority[level]) {
+          continue;
+        }
+      }
+      
+      const logEntry = {
+        timestamp: new Date(currentDate.getTime() + Math.random() * 86400000).toISOString(),
+        level: randomLevel,
+        message: `Log message ${i + 1} for ${currentDate.toISOString().split('T')[0]}`,
+        source: 'aizap-backend',
+        details: {
+          userId: Math.floor(Math.random() * 100),
+          action: ['login', 'send_message', 'receive_message', 'error', 'info'][Math.floor(Math.random() * 5)]
+        }
+      };
+      
+      logs.push(logEntry);
+    }
+    
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  // Ordenar por timestamp
+  logs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  
+  if (format === 'json') {
+    return JSON.stringify(logs, null, 2);
+  } else if (format === 'csv') {
+    const csvHeader = 'timestamp,level,message,source,userId,action\n';
+    const csvRows = logs.map(log => 
+      `${log.timestamp},${log.level},"${log.message}",${log.source},${log.details.userId},${log.details.action}`
+    ).join('\n');
+    return csvHeader + csvRows;
+  } else {
+    // Formato texto
+    return logs.map(log => 
+      `[${log.timestamp}] ${log.level.toUpperCase()}: ${log.message} (${log.source})`
+    ).join('\n');
+  }
+};
+
 // Error handling
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -974,8 +1469,20 @@ app.use((req, res) => {
   });
 });
 
-app.listen(port, () => {
-  console.log(`🚀 AiZap Backend rodando na porta ${port}`);
-  console.log(`📡 API disponível em: http://localhost:${port}`);
-  console.log(`🔍 Health check: http://localhost:${port}/ping`);
-});
+// Initialize server after database connection
+const startServer = async () => {
+  try {
+    await connectDB();
+    
+    app.listen(port, () => {
+      console.log(`🚀 AiZap Backend rodando na porta ${port}`);
+      console.log(`📡 API disponível em: http://localhost:${port}`);
+      console.log(`🔍 Health check: http://localhost:${port}/ping`);
+    });
+  } catch (error) {
+    console.error('❌ Erro ao inicializar servidor:', error);
+    process.exit(1);
+  }
+};
+
+startServer();

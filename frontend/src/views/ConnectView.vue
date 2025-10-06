@@ -13,13 +13,12 @@
             
             <v-card-text class="pa-6">
               <!-- Status Section -->
-              <v-row class="mb-6">
-                <v-col cols="12" class="text-center">
+              <v-row class="mb-6" justify="center">
+                <v-col cols="12" class="d-flex justify-center align-center flex-wrap ga-3">
                   <v-chip 
                     :color="whatsappStatus.isConnected ? 'success' : 'warning'"
                     variant="tonal"
                     size="large"
-                    class="mb-2"
                   >
                     <v-icon start>{{ whatsappStatus.isConnected ? 'mdi-check-circle' : 'mdi-clock' }}</v-icon>
                     {{ whatsappStatus.isConnected ? 'Conectado' : 'Aguardando Conexão' }}
@@ -93,75 +92,74 @@
               </div>
 
               <!-- Action Buttons -->
-              <div class="action-buttons mt-6">
-                <v-btn
-                  v-if="!whatsappStatus.isConnected"
-                  color="primary"
-                  size="large"
-                  @click="initializeWhatsApp"
-                  :loading="loading"
-                  class="mr-4"
-                >
-                  <v-icon start>mdi-play</v-icon>
-                  Inicializar WhatsApp
-                </v-btn>
-                
-                <v-btn
-                  v-if="!whatsappStatus.isConnected && !whatsappStatus.qrCode"
-                  color="warning"
-                  size="large"
-                  @click="restartWhatsApp"
-                  :loading="restarting"
-                  class="mr-4"
-                >
-                  <v-icon start>mdi-restart</v-icon>
-                  Reiniciar WhatsApp
-                </v-btn>
+              <div class="action-buttons mt-6 d-flex flex-column align-center ga-3">
+                <div class="d-flex flex-wrap justify-center ga-3">
+                  <v-btn
+                    v-if="!whatsappStatus.isConnected"
+                    color="primary"
+                    size="large"
+                    @click="initializeWhatsApp"
+                    :loading="loading"
+                  >
+                    <v-icon start>mdi-play</v-icon>
+                    Inicializar WhatsApp
+                  </v-btn>
+                  
+                  <v-btn
+                    v-if="!whatsappStatus.isConnected && !whatsappStatus.qrCode"
+                    color="warning"
+                    size="large"
+                    @click="restartWhatsApp"
+                    :loading="restarting"
+                  >
+                    <v-icon start>mdi-restart</v-icon>
+                    Reiniciar WhatsApp
+                  </v-btn>
 
-                <v-btn
-                  v-if="whatsappStatus.qrCode && !whatsappStatus.isConnected"
-                  color="success"
-                  size="large"
-                  @click="simulateConnection"
-                  :loading="simulating"
-                  class="mr-4"
-                >
-                  <v-icon start>mdi-check-circle</v-icon>
-                  Simular Conexão
-                </v-btn>
+                  <v-btn
+                    v-if="whatsappStatus.qrCode && !whatsappStatus.isConnected"
+                    color="success"
+                    size="large"
+                    @click="simulateConnection"
+                    :loading="simulating"
+                  >
+                    <v-icon start>mdi-check-circle</v-icon>
+                    Simular Conexão
+                  </v-btn>
+                </div>
                 
-                <v-btn
-                  v-if="whatsappStatus.isConnected"
-                  color="error"
-                  size="large"
-                  @click="disconnectWhatsApp"
-                  :loading="disconnecting"
-                  class="mr-4"
-                >
-                  <v-icon start>mdi-stop</v-icon>
-                  Desconectar
-                </v-btn>
+                <div class="d-flex flex-wrap justify-center ga-3">
+                  <v-btn
+                    v-if="whatsappStatus.isConnected"
+                    color="error"
+                    size="large"
+                    @click="disconnectWhatsApp"
+                    :loading="disconnecting"
+                  >
+                    <v-icon start>mdi-stop</v-icon>
+                    Desconectar
+                  </v-btn>
 
-                <v-btn
-                  v-if="whatsappStatus.isConnected"
-                  color="secondary"
-                  size="large"
-                  @click="showCreateInstanceDialog = true"
-                  class="mr-4"
-                >
-                  <v-icon start>mdi-plus</v-icon>
-                  Nova Instância
-                </v-btn>
-                
-                <v-btn
-                  color="info"
-                  size="large"
-                  @click="refreshStatus"
-                  :loading="refreshing"
-                >
-                  <v-icon start>mdi-refresh</v-icon>
-                  Atualizar Status
-                </v-btn>
+                  <v-btn
+                    v-if="whatsappStatus.isConnected"
+                    color="secondary"
+                    size="large"
+                    @click="showCreateInstanceDialog = true"
+                  >
+                    <v-icon start>mdi-plus</v-icon>
+                    Nova Instância
+                  </v-btn>
+                  
+                  <v-btn
+                    color="info"
+                    size="large"
+                    @click="refreshStatus"
+                    :loading="refreshing"
+                  >
+                    <v-icon start>mdi-refresh</v-icon>
+                    Atualizar Status
+                  </v-btn>
+                </div>
               </div>
             </v-card-text>
           </v-card>

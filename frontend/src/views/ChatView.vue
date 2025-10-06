@@ -6,24 +6,26 @@
         <v-tabs
           v-model="activeTab"
           color="primary"
-          align-tabs="center"
           class="conversation-tabs"
+          align-tabs="center"
+          variant="elevated"
+          grow
         >
-          <v-tab value="atendimento">
+          <v-tab value="atendimento" class="conversation-tab">
             <v-icon>mdi-account-check</v-icon>
-            <v-chip size="small" color="primary" class="ml-1">
+            <v-chip size="small" color="primary" class="ml-2 tab-count">
               {{ getContactCount('atendimento') }}
             </v-chip>
           </v-tab>
-          <v-tab value="aguardando">
+          <v-tab value="aguardando" class="conversation-tab">
             <v-icon>mdi-clock-outline</v-icon>
-            <v-chip size="small" color="warning" class="ml-1">
+            <v-chip size="small" color="warning" class="ml-2 tab-count">
               {{ getContactCount('aguardando') }}
             </v-chip>
           </v-tab>
-          <v-tab value="finalizado">
+          <v-tab value="finalizado" class="conversation-tab">
             <v-icon>mdi-check-circle</v-icon>
-            <v-chip size="small" color="success" class="ml-1">
+            <v-chip size="small" color="success" class="ml-2 tab-count">
               {{ getContactCount('finalizado') }}
             </v-chip>
           </v-tab>
@@ -795,43 +797,96 @@ export default {
 }
 
 .conversations-header {
-  padding: 8px 0;
-  border-bottom: 1px solid #e0e0e0;
-  background: #f5f5f5;
+  padding: 0;
+  border-bottom: none;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .conversation-tabs {
   width: 100%;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 12px 12px 0 0;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
 }
 
-.conversation-tabs .v-tab {
-  font-size: 11px;
-  min-width: 0;
-  padding: 8px 6px;
+.conversation-tab {
+  font-weight: 600;
   text-transform: none;
+  letter-spacing: 0.5px;
+  min-height: 56px;
+  padding: 0 16px;
+  transition: all 0.3s ease;
+  flex: 1;
+  text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  flex-direction: column;
-  height: auto;
-  min-height: 50px;
+  gap: 8px;
+  border-radius: 16px 16px 0 0; /* rounded top corners like settings tabs */
+  margin: 8px 4px 0 4px;
 }
 
-.conversation-tabs .v-tab .v-icon {
+.conversation-tab:hover {
+  background: rgba(25, 118, 210, 0.08);
+  transform: translateY(-1px);
+}
+
+.conversation-tab.v-tab--selected {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  color: #1976d2 !important;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2);
+  transform: translateY(-2px);
+  border: 2px solid #1976d2;
+  border-radius: 16px 16px 0 0; /* rounded top corners for selected state */
+}
+
+.conversation-tab.v-tab--selected .v-icon {
+  color: #1976d2 !important;
+}
+
+.conversation-tab.v-tab--selected .tab-label {
+  color: #1976d2 !important;
+  font-weight: 700;
+}
+
+.conversation-tab .tab-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.conversation-tab .tab-count {
+  font-size: 12px;
+  height: 20px;
+  min-width: 20px;
+}
+
+.conversation-tab .v-icon {
   font-size: 20px;
 }
 
-.conversation-tabs .v-tab .v-chip {
-  font-size: 10px;
-  height: 18px;
-  min-width: 18px;
+/* Hide the default tab slider */
+.conversation-tabs .v-tabs-slider {
+  display: none;
+}
+
+.conversation-tabs .v-tab {
+  border-radius: 16px 16px 0 0;
+  margin: 8px 4px 0 4px;
+  position: relative;
 }
 
 .conversations-list {
-  padding: 8px;
+  padding: 16px;
   flex: 1;
   overflow-y: auto;
+  background: white;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .conversation-item {

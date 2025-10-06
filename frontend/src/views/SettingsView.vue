@@ -569,7 +569,7 @@
                   <p>Remover dados antigos e otimizar o banco de dados</p>
                   <v-btn
                     color="warning"
-                    @click="cleanOldData"
+                    @click="openDataCleanupModal"
                     :loading="cleaning"
                   >
                     Limpar Dados Antigos
@@ -605,7 +605,7 @@
                   <p>Gerenciar logs do sistema</p>
                   <v-btn
                     color="secondary"
-                    @click="downloadLogs"
+                    @click="openLogsDownloadModal"
                     :loading="downloadingLogs"
                   >
                     Baixar Logs
@@ -675,6 +675,16 @@
               </v-col>
             </v-row>
           </v-form>
+
+          <div class="action-buttons">
+            <v-btn
+              color="primary"
+              @click="saveBackupSettings"
+              :loading="saving"
+            >
+              Salvar Configurações
+            </v-btn>
+          </div>
 
           <v-divider class="my-6" />
 
@@ -975,6 +985,157 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Modal de Limpeza de Dados -->
+    <v-dialog v-model="dataCleanupModal" max-width="500px">
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon class="mr-2">mdi-database</v-icon>
+          Limpeza de Dados Antigos
+        </v-card-title>
+        
+        <v-card-text>
+          <v-alert
+            type="warning"
+            variant="tonal"
+            class="mb-4"
+          >
+            <template v-slot:prepend>
+              <v-icon>mdi-alert</v-icon>
+            </template>
+            <div>
+              <strong>Atenção:</strong> Esta ação irá remover permanentemente todos os dados anteriores à data selecionada. 
+              Esta ação não pode ser desfeita.
+            </div>
+          </v-alert>
+          
+          <v-form ref="dataCleanupForm" v-model="dataCleanupFormValid">
+            <v-row>
+              <v-col cols="12">
+                <v-text-field
+                  v-model="dataCleanupDate"
+                  label="Data Limite"
+                  type="date"
+                  variant="outlined"
+                  :rules="[v => !!v || 'Data é obrigatória']"
+                  required
+                  hint="Todos os dados anteriores a esta data serão removidos"
+                  persistent-hint
+                />
+              </v-col>
+              <v-col cols="12">
+                <v-select
+                  v-model="dataCleanupType"
+                  :items="dataCleanupTypes"
+                  label="Tipo de Dados"
+                  variant="outlined"
+                  :rules="[v => !!v || 'Tipo é obrigatório']"
+                  required
+                  hint="Selecione quais tipos de dados devem ser removidos"
+                  persistent-hint
+                />
+              </v-col>
+            </v-row>
+          </v-form>
+        </v-card-text>
+        
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="closeDataCleanupModal">Cancelar</v-btn>
+          <v-btn
+            color="warning"
+            @click="confirmDataCleanup"
+            :loading="cleaning"
+            :disabled="!dataCleanupFormValid"
+          >
+            Confirmar Limpeza
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Modal de Download de Logs -->
+    <v-dialog v-model="logsDownloadModal" max-width="500px">
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon class="mr-2">mdi-log</v-icon>
+          Download de Logs
+        </v-card-title>
+        
+        <v-card-text>
+          <v-alert
+            type="info"
+            variant="tonal"
+            class="mb-4"
+          >
+            <template v-slot:prepend>
+              <v-icon>mdi-information</v-icon>
+            </template>
+            <div>
+              Selecione o período dos logs que deseja baixar. Os logs serão compactados em um arquivo ZIP.
+            </div>
+          </v-alert>
+          
+          <v-form ref="logsDownloadForm" v-model="logsDownloadFormValid">
+            <v-row>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="logsStartDate"
+                  label="Data Inicial"
+                  type="date"
+                  variant="outlined"
+                  :rules="[v => !!v || 'Data inicial é obrigatória']"
+                  required
+                />
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="logsEndDate"
+                  label="Data Final"
+                  type="date"
+                  variant="outlined"
+                  :rules="[v => !!v || 'Data final é obrigatória']"
+                  required
+                />
+              </v-col>
+              <v-col cols="12">
+                <v-select
+                  v-model="logsLevel"
+                  :items="logsLevels"
+                  label="Nível de Log"
+                  variant="outlined"
+                  hint="Selecione o nível mínimo de log a ser incluído"
+                  persistent-hint
+                />
+              </v-col>
+              <v-col cols="12">
+                <v-select
+                  v-model="logsFormat"
+                  :items="logsFormats"
+                  label="Formato do Arquivo"
+                  variant="outlined"
+                  hint="Escolha o formato de saída dos logs"
+                  persistent-hint
+                />
+              </v-col>
+            </v-row>
+          </v-form>
+        </v-card-text>
+        
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="closeLogsDownloadModal">Cancelar</v-btn>
+          <v-btn
+            color="secondary"
+            @click="confirmLogsDownload"
+            :loading="downloadingLogs"
+            :disabled="!logsDownloadFormValid"
+          >
+            Baixar Logs
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 </template>
 
 <script>
@@ -1006,6 +1167,12 @@ export default {
     const loadingCep = ref(false)
     const userTab = ref('basic')
     const photoFile = ref(null)
+    
+    // Modais de manutenção
+    const dataCleanupModal = ref(false)
+    const logsDownloadModal = ref(false)
+    const dataCleanupFormValid = ref(false)
+    const logsDownloadFormValid = ref(false)
     
     // General Settings
     const generalSettings = reactive({
@@ -1073,6 +1240,16 @@ export default {
       quickMessages: []
     })
     
+    // Data Cleanup Form
+    const dataCleanupDate = ref('')
+    const dataCleanupType = ref('')
+    
+    // Logs Download Form
+    const logsStartDate = ref('')
+    const logsEndDate = ref('')
+    const logsLevel = ref('info')
+    const logsFormat = ref('txt')
+    
     // Data
     const users = ref([])
     const weekDays = [
@@ -1128,6 +1305,28 @@ export default {
       { title: 'Configurações', value: 'settings' },
       { title: 'Bot', value: 'bot' },
       { title: 'Conectar', value: 'connect' }
+    ]
+    
+    const dataCleanupTypes = [
+      { title: 'Todas as Mensagens', value: 'messages' },
+      { title: 'Logs do Sistema', value: 'logs' },
+      { title: 'Dados de Usuários Inativos', value: 'inactive_users' },
+      { title: 'Arquivos Temporários', value: 'temp_files' },
+      { title: 'Cache e Sessões', value: 'cache_sessions' },
+      { title: 'Todos os Dados Antigos', value: 'all' }
+    ]
+    
+    const logsLevels = [
+      { title: 'Debug (Todos)', value: 'debug' },
+      { title: 'Info (Info, Warn, Error)', value: 'info' },
+      { title: 'Warn (Warn, Error)', value: 'warn' },
+      { title: 'Error (Apenas Erros)', value: 'error' }
+    ]
+    
+    const logsFormats = [
+      { title: 'Texto (.txt)', value: 'txt' },
+      { title: 'JSON (.json)', value: 'json' },
+      { title: 'CSV (.csv)', value: 'csv' }
     ]
     
     const userHeaders = [
@@ -1304,16 +1503,54 @@ export default {
       }
     }
     
-    const cleanOldData = async () => {
+    const openDataCleanupModal = () => {
+      // Definir data padrão como 30 dias atrás
+      const defaultDate = new Date()
+      defaultDate.setDate(defaultDate.getDate() - 30)
+      dataCleanupDate.value = defaultDate.toISOString().split('T')[0]
+      dataCleanupType.value = 'all'
+      dataCleanupModal.value = true
+    }
+    
+    const closeDataCleanupModal = () => {
+      dataCleanupModal.value = false
+      dataCleanupDate.value = ''
+      dataCleanupType.value = ''
+    }
+    
+    const confirmDataCleanup = async () => {
       cleaning.value = true
       try {
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        console.log('Limpeza de dados realizada')
+        const response = await fetch('http://localhost:3001/maintenance/cleanup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            date: dataCleanupDate.value,
+            type: dataCleanupType.value
+          })
+        })
+        
+        if (!response.ok) {
+          throw new Error('Erro na limpeza de dados')
+        }
+        
+        const result = await response.json()
+        console.log('Limpeza de dados realizada:', result)
+        alert('Limpeza de dados realizada com sucesso!')
+        closeDataCleanupModal()
       } catch (error) {
         console.error('Erro na limpeza de dados:', error)
+        alert('Erro na limpeza de dados: ' + error.message)
       } finally {
         cleaning.value = false
       }
+    }
+    
+    const cleanOldData = async () => {
+      // Função mantida para compatibilidade, mas agora redireciona para o modal
+      openDataCleanupModal()
     }
     
     const clearCache = async () => {
@@ -1328,16 +1565,72 @@ export default {
       }
     }
     
-    const downloadLogs = async () => {
+    const openLogsDownloadModal = () => {
+      // Definir datas padrão (últimos 7 dias)
+      const endDate = new Date()
+      const startDate = new Date()
+      startDate.setDate(startDate.getDate() - 7)
+      
+      logsStartDate.value = startDate.toISOString().split('T')[0]
+      logsEndDate.value = endDate.toISOString().split('T')[0]
+      logsLevel.value = 'info'
+      logsFormat.value = 'txt'
+      logsDownloadModal.value = true
+    }
+    
+    const closeLogsDownloadModal = () => {
+      logsDownloadModal.value = false
+      logsStartDate.value = ''
+      logsEndDate.value = ''
+      logsLevel.value = 'info'
+      logsFormat.value = 'txt'
+    }
+    
+    const confirmLogsDownload = async () => {
       downloadingLogs.value = true
       try {
-        await new Promise(resolve => setTimeout(resolve, 1500))
-        console.log('Logs baixados')
+        const response = await fetch('http://localhost:3001/maintenance/logs/download', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            startDate: logsStartDate.value,
+            endDate: logsEndDate.value,
+            level: logsLevel.value,
+            format: logsFormat.value
+          })
+        })
+        
+        if (!response.ok) {
+          throw new Error('Erro ao baixar logs')
+        }
+        
+        // Criar blob e fazer download
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `logs_${logsStartDate.value}_to_${logsEndDate.value}.zip`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        
+        console.log('Logs baixados com sucesso')
+        alert('Download dos logs iniciado!')
+        closeLogsDownloadModal()
       } catch (error) {
         console.error('Erro ao baixar logs:', error)
+        alert('Erro ao baixar logs: ' + error.message)
       } finally {
         downloadingLogs.value = false
       }
+    }
+    
+    const downloadLogs = async () => {
+      // Função mantida para compatibilidade, mas agora redireciona para o modal
+      openLogsDownloadModal()
     }
     
     const restartServices = async () => {
@@ -1355,30 +1648,159 @@ export default {
     const exportBackup = async () => {
       exporting.value = true
       try {
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        console.log('Backup exportado')
+        const response = await fetch('http://localhost:3001/backup/export', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            frequency: backupSettings.frequency,
+            retention: backupSettings.retention,
+            startDate: backupSettings.startDate,
+            endDate: backupSettings.endDate
+          })
+        })
+        
+        if (!response.ok) {
+          throw new Error('Erro ao exportar backup')
+        }
+        
+        // Criar blob e fazer download
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `aizap_backup_${new Date().toISOString().split('T')[0]}.json`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        
+        console.log('Backup exportado com sucesso')
+        alert('Backup exportado com sucesso!')
       } catch (error) {
         console.error('Erro ao exportar backup:', error)
+        alert('Erro ao exportar backup: ' + error.message)
       } finally {
         exporting.value = false
       }
     }
     
     const importBackup = async () => {
+      if (!importFile.value) {
+        alert('Por favor, selecione um arquivo de backup')
+        return
+      }
+      
       importing.value = true
       try {
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        console.log('Backup importado')
+        const fileContent = await readFileContent(importFile.value)
+        const backupData = JSON.parse(fileContent)
+        
+        const response = await fetch('http://localhost:3001/backup/import', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(backupData)
+        })
+        
+        if (!response.ok) {
+          throw new Error('Erro ao importar backup')
+        }
+        
+        const result = await response.json()
+        console.log('Backup importado:', result)
+        alert(`Backup importado com sucesso! ${result.importedCount} registros importados.`)
         importFile.value = null
       } catch (error) {
         console.error('Erro ao importar backup:', error)
+        alert('Erro ao importar backup: ' + error.message)
       } finally {
         importing.value = false
       }
     }
     
-    const viewBackupHistory = () => {
-      console.log('Visualizando histórico de backups')
+    const readFileContent = (file) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = (e) => resolve(e.target.result)
+        reader.onerror = (e) => reject(e)
+        reader.readAsText(file)
+      })
+    }
+    
+    const viewBackupHistory = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/backup/history')
+        
+        if (!response.ok) {
+          throw new Error('Erro ao buscar histórico de backups')
+        }
+        
+        const history = await response.json()
+        
+        if (history.length === 0) {
+          alert('Nenhum backup encontrado no histórico.')
+          return
+        }
+        
+        // Criar uma string com o histórico
+        let historyText = 'Histórico de Backups:\n\n'
+        history.forEach((item, index) => {
+          historyText += `${index + 1}. ${item.type === 'export' ? 'Exportação' : 'Importação'}\n`
+          historyText += `   Data: ${new Date(item.createdAt || item.importedAt).toLocaleString()}\n`
+          if (item.filename) historyText += `   Arquivo: ${item.filename}\n`
+          if (item.recordsCount) historyText += `   Registros: ${item.recordsCount}\n`
+          historyText += '\n'
+        })
+        
+        alert(historyText)
+      } catch (error) {
+        console.error('Erro ao buscar histórico de backups:', error)
+        alert('Erro ao buscar histórico de backups: ' + error.message)
+      }
+    }
+    
+    const saveBackupSettings = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/backup/settings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(backupSettings)
+        })
+        
+        if (!response.ok) {
+          throw new Error('Erro ao salvar configurações de backup')
+        }
+        
+        console.log('Configurações de backup salvas')
+        alert('Configurações de backup salvas com sucesso!')
+      } catch (error) {
+        console.error('Erro ao salvar configurações de backup:', error)
+        alert('Erro ao salvar configurações: ' + error.message)
+      }
+    }
+    
+    const loadBackupSettings = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/backup/settings')
+        
+        if (!response.ok) {
+          throw new Error('Erro ao carregar configurações de backup')
+        }
+        
+        const settings = await response.json()
+        
+        // Atualizar os dados reativos
+        Object.assign(backupSettings, settings)
+        
+        console.log('Configurações de backup carregadas:', settings)
+      } catch (error) {
+        console.error('Erro ao carregar configurações de backup:', error)
+      }
     }
     
     const openUserDialog = () => {
@@ -1622,6 +2044,7 @@ export default {
       loadUsers()
       loadGeneralSettings()
       loadWhatsAppSettings()
+      loadBackupSettings()
       refreshSecondaryStatus() // Load secondary API status
     })
     
@@ -1641,12 +2064,22 @@ export default {
       whatsappFormValid,
       backupFormValid,
       userFormValid,
+      dataCleanupFormValid,
+      logsDownloadFormValid,
       userDialog,
       editingUser,
       importFile,
       loadingCep,
       userTab,
       photoFile,
+      dataCleanupModal,
+      logsDownloadModal,
+      dataCleanupDate,
+      dataCleanupType,
+      logsStartDate,
+      logsEndDate,
+      logsLevel,
+      logsFormat,
       generalSettings,
       whatsappSettings,
       backupSettings,
@@ -1658,6 +2091,9 @@ export default {
       roleOptions,
       sectorOptions,
       menuOptions,
+      dataCleanupTypes,
+      logsLevels,
+      logsFormats,
       userHeaders,
       emailRules,
       passwordRules,
@@ -1668,12 +2104,21 @@ export default {
       testConnection,
       onProviderChange,
       cleanOldData,
+      openDataCleanupModal,
+      closeDataCleanupModal,
+      confirmDataCleanup,
       clearCache,
       downloadLogs,
+      openLogsDownloadModal,
+      closeLogsDownloadModal,
+      confirmLogsDownload,
       restartServices,
       exportBackup,
       importBackup,
       viewBackupHistory,
+      saveBackupSettings,
+      loadBackupSettings,
+      readFileContent,
       openUserDialog,
       editUser,
       saveUser,
