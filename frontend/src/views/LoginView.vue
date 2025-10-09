@@ -36,7 +36,7 @@
     <!-- Layout com duas colunas -->
     <v-row class="login-row" no-gutters>
       <!-- Coluna esquerda - Formulário de Login -->
-      <v-col cols="12" sm="12" md="4" lg="3" class="left-column">
+      <v-col cols="12" sm="12" md="4" lg="3" class="left-column mobile-full">
         <div class="login-content">
           <!-- Logo no topo -->
           <div class="logo-container mb-4">
@@ -94,7 +94,7 @@
       </v-col>
       
       <!-- Coluna direita - Conteúdo de marketing -->
-      <v-col cols="12" sm="12" md="8" lg="9" class="right-column">
+      <v-col cols="12" sm="12" md="8" lg="9" class="right-column mobile-hidden">
         <!-- Conteúdo de marketing será mantido pelo background -->
       </v-col>
     </v-row>
@@ -362,44 +362,44 @@ export default {
 
 /* Responsividade */
 
-@media (max-width: 960px) {
+/* Para tablets e dispositivos médios */
+@media (max-width: 1024px) {
+  .mobile-hidden {
+    display: none !important;
+  }
+  
+  .mobile-full {
+    width: 100% !important;
+    min-height: 100vh !important;
+    background-color: #d9d9d9 !important;
+  }
+}
+
+/* Para smartphones */
+@media (max-width: 768px) {
   .left-column {
-    min-height: 50vh;
+    min-height: 100vh !important;
     padding: 20px;
+    background-color: #d9d9d9 !important;
   }
   
   .right-column {
-    min-height: 50vh;
+    display: none !important;
   }
   
   .login-content {
-    padding: 0 10px;
+    padding: 0 15px;
+    max-width: 100%;
   }
   
   .custom-field {
     max-width: 100% !important;
+    width: 100% !important;
   }
   
   .login-button {
     max-width: 100% !important;
-  }
-}
-
-@media (max-width: 600px) {
-  .left-column {
-    padding: 15px;
-  }
-  
-  .login-content {
-    padding: 0 5px;
-  }
-  
-  .logo-container {
-    margin-bottom: 20px !important;
-  }
-  
-  .login-form {
-    padding: 10px 0;
+    width: 100% !important;
   }
   
   .whatsapp-float {
@@ -411,6 +411,45 @@ export default {
   
   .whatsapp-float .v-icon {
     font-size: 24px !important;
+  }
+}
+
+/* Para dispositivos muito pequenos */
+@media (max-width: 480px) {
+  .left-column {
+    padding: 10px;
+  }
+  
+  .login-content {
+    padding: 0 5px;
+  }
+  
+  .logo-container {
+    margin-bottom: 15px !important;
+  }
+  
+  .login-form {
+    padding: 5px 0;
+  }
+  
+  .custom-field {
+    height: 45px !important;
+  }
+  
+  .login-button {
+    height: 45px !important;
+    font-size: 14px !important;
+  }
+  
+  .whatsapp-float {
+    bottom: 10px !important;
+    right: 10px !important;
+    width: 50px !important;
+    height: 50px !important;
+  }
+  
+  .whatsapp-float .v-icon {
+    font-size: 20px !important;
   }
 }
 </style>
