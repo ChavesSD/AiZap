@@ -100,6 +100,16 @@
       <router-view />
     </v-main>
 
+    <!-- WhatsApp Floating Button -->
+    <v-btn
+      class="whatsapp-float"
+      color="#25D366"
+      size="large"
+      icon="mdi-whatsapp"
+      @click="openWhatsApp"
+      title="Fale conosco no WhatsApp"
+    />
+
     <!-- Profile Modal -->
     <v-dialog v-model="profileDialog" max-width="600px" scrollable>
       <v-card>
@@ -412,6 +422,13 @@ export default {
       }
     }
     
+    const openWhatsApp = () => {
+      const phoneNumber = '558335125222' // Número sem formatação para WhatsApp
+      const message = encodeURIComponent('Olá! Gostaria de saber mais sobre o AiZap.')
+      const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`
+      window.open(whatsappUrl, '_blank')
+    }
+    
     onMounted(() => {
       // Inicializar dados do usuário se necessário
       authStore.checkAuth()
@@ -427,6 +444,7 @@ export default {
       handleNavigation,
       handleLogout,
       goToProfile,
+      openWhatsApp,
       // Profile modal
       profileDialog,
       profileForm,
@@ -545,6 +563,57 @@ export default {
   background-color: #f5f5f5;
   height: calc(100vh - 80px); /* Subtrai altura do app-bar + margem */
   overflow-y: auto;
+}
+
+/* WhatsApp Floating Button */
+.whatsapp-float {
+  position: fixed !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  z-index: 1000 !important;
+  width: 60px !important;
+  height: 60px !important;
+  border-radius: 50% !important;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4) !important;
+  transition: all 0.3s ease !important;
+  animation: pulse 2s infinite !important;
+}
+
+.whatsapp-float:hover {
+  transform: scale(1.1) !important;
+  box-shadow: 0 6px 20px rgba(37, 211, 102, 0.6) !important;
+}
+
+.whatsapp-float .v-icon {
+  font-size: 28px !important;
+  color: white !important;
+}
+
+/* Animação de pulso */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+  }
+  50% {
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.8), 0 0 0 10px rgba(37, 211, 102, 0.1);
+  }
+  100% {
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+  }
+}
+
+/* Responsividade para mobile */
+@media (max-width: 768px) {
+  .whatsapp-float {
+    bottom: 15px !important;
+    right: 15px !important;
+    width: 55px !important;
+    height: 55px !important;
+  }
+  
+  .whatsapp-float .v-icon {
+    font-size: 24px !important;
+  }
 }
 
 </style>
