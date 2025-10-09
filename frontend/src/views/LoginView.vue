@@ -239,7 +239,7 @@ export default {
   width: 100%;
   max-width: 400px;
   text-align: center;
-  margin-top: -10vh;
+  margin-top: 0;
   padding: 0 20px;
 }
 
@@ -293,6 +293,7 @@ export default {
   transition: all 0.3s ease;
   border-radius: 8px !important;
   font-weight: 600 !important;
+  font-size: 16px !important;
   text-transform: uppercase !important;
   letter-spacing: 0.5px !important;
 }
@@ -360,11 +361,6 @@ export default {
 }
 
 /* Responsividade */
-@media (max-width: 1200px) {
-  .login-content {
-    margin-top: -5vh;
-  }
-}
 
 @media (max-width: 960px) {
   .left-column {
@@ -377,7 +373,6 @@ export default {
   }
   
   .login-content {
-    margin-top: 0;
     padding: 0 10px;
   }
   
